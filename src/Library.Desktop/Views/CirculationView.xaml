@@ -1,0 +1,209 @@
+<UserControl x:Class="Library.Desktop.Views.CirculationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:enums="clr-namespace:Library.Domain.Enums;assembly=Library.Domain"
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="1000">
+
+    <Grid Margin="20">
+        <TabControl SelectedIndex="{Binding SelectedTabIndex}" BorderThickness="0" Background="Transparent">
+            <!-- TAB 1: MƯỢN SÁCH (CIR-01, CIR-02) -->
+            <TabItem Header="📖 MƯỢN SÁCH (F2)" FontSize="15" FontWeight="SemiBold" Padding="16,8">
+                <Grid Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="420"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left: Input & Member Card -->
+                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Bước 1: Quét / Nhập mã thẻ bạn đọc" FontWeight="Bold" FontSize="14" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,10"/>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Text="{Binding MemberCardInput, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource ModernTextBox}"
+                                             Height="40"
+                                             FontSize="15"
+                                             FontWeight="SemiBold"
+                                             VerticalContentAlignment="Center"/>
+                                    <Button Grid.Column="1" Content="Tìm kiếm"
+                                            Command="{Binding SearchMemberCommand}"
+                                            Style="{StaticResource PrimaryButton}"
+                                            Margin="8,0,0,0" Height="40" Padding="14,0"/>
+                                </Grid>
+
+                                <!-- Member Info Display -->
+                                <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="12" Margin="0,0,0,10"
+                                        Visibility="{Binding SelectedMember, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding SelectedMember.FullName}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{Binding SelectedMember.ClassOrDepartment, StringFormat='Lớp / Tổ: {0}'}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                        <TextBlock Text="{Binding SelectedMember.Type, StringFormat='Đối tượng: {0}'}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{Binding SelectedMember.MaxBorrowLimit, StringFormat='Hạn mức mượn: {0} cuốn'}" FontSize="13" Foreground="{StaticResource PrimaryDarkBrush}" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                                        <TextBlock Text="{Binding SelectedMember.UnpaidFineAmount, StringFormat='Tiền phạt nợ: {0:N0} đ'}" FontSize="13" Foreground="{StaticResource DangerBrush}" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Scan Book Copy Barcode -->
+                        <Border Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Bước 2: Quét mã vạch cuốn sách cần mượn" FontWeight="Bold" FontSize="14" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,10"/>
+                                <TextBox Text="{Binding BookBarcodeInput, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource ModernTextBox}"
+                                         Height="42"
+                                         FontSize="16"
+                                         FontWeight="Bold"
+                                         Margin="0,0,0,14"/>
+
+                                <Button Content="XÁC NHẬN MƯỢN SÁCH"
+                                        Command="{Binding ConfirmBorrowCommand}"
+                                        Style="{StaticResource SuccessButton}"
+                                        Height="44"
+                                        FontSize="15"
+                                        FontWeight="Bold"
+                                        Margin="0,0,0,10"/>
+
+                                <!-- Message Box -->
+                                <TextBlock Text="{Binding BorrowMessage}"
+                                           Foreground="{Binding BorrowHasError, Converter={x:Null}}"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Right: Active Loans of this Member -->
+                    <Border Grid.Column="1" Style="{StaticResource CardBorder}">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="Các sách đang mượn của bạn đọc này" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                            <DataGrid ItemsSource="{Binding MemberActiveLoans}" Style="{StaticResource ModernDataGrid}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Mã vạch" Binding="{Binding CopyBarcode}" Width="120"/>
+                                    <DataGridTextColumn Header="Tên sách" Binding="{Binding BookTitle}" Width="*"/>
+                                    <DataGridTextColumn Header="Hạn trả" Binding="{Binding DueDateUtc, StringFormat='dd/MM/yyyy'}" Width="100"/>
+                                    <DataGridTextColumn Header="Đã gia hạn" Binding="{Binding RenewalCount, StringFormat='{}{0} lần'}" Width="90"/>
+                                    <DataGridTemplateColumn Header="Thao tác" Width="100">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button Content="Gia hạn"
+                                                        Command="{Binding DataContext.RenewLoanCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        Style="{StaticResource OutlinedButton}"
+                                                        Padding="8,2" FontSize="12"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 2: TRẢ SÁCH (CIR-03, CIR-04, FIN-01, FIN-02) -->
+            <TabItem Header="🔄 TRẢ SÁCH (F3)" FontSize="15" FontWeight="SemiBold" Padding="16,8">
+                <Grid Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="460"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,16,0">
+                        <StackPanel>
+                            <TextBlock Text="Quét mã vạch cuốn sách để nhận trả" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="Mã vạch bản sao:" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                            <TextBox Text="{Binding ReturnBarcodeInput, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource ModernTextBox}"
+                                     Height="42" FontSize="16" FontWeight="Bold"
+                                     Margin="0,0,0,14"/>
+
+                            <TextBlock Text="Tình trạng sách khi trả:" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                            <ComboBox SelectedValue="{Binding SelectedCondition}"
+                                      SelectedValuePath="Tag"
+                                      Height="38" Margin="0,0,0,14" FontSize="14" Padding="8,4">
+                                <ComboBoxItem Content="Bình thường (Không phạt)" Tag="{x:Static enums:ReturnCondition.Normal}" IsSelected="True"/>
+                                <ComboBoxItem Content="Hư hỏng nhẹ (Phạt 20% giá bìa)" Tag="{x:Static enums:ReturnCondition.DamagedLight}"/>
+                                <ComboBoxItem Content="Hư hỏng nặng (Phạt 50% giá bìa)" Tag="{x:Static enums:ReturnCondition.DamagedHeavy}"/>
+                                <ComboBoxItem Content="Mất sách (Phạt 100% giá bìa + phí)" Tag="{x:Static enums:ReturnCondition.Lost}"/>
+                            </ComboBox>
+
+                            <TextBlock Text="Ghi chú khi trả (nếu có):" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                            <TextBox Text="{Binding ReturnNotes, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource ModernTextBox}"
+                                     Height="60" TextWrapping="Wrap" AcceptsReturn="True"
+                                     Margin="0,0,0,20"/>
+
+                            <Button Content="XÁC NHẬN TRẢ SÁCH"
+                                    Command="{Binding ConfirmReturnCommand}"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Height="44" FontSize="15" FontWeight="Bold"
+                                    Margin="0,0,0,12"/>
+
+                            <TextBlock Text="{Binding ReturnMessage}"
+                                       FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Right: Info Panel on return rules -->
+                    <Border Grid.Column="1" Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <TextBlock Text="Quy định mượn trả &amp; Phạt (SRS BR-05 → BR-10)" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                            <TextBlock Text="• Phạt trễ hạn: 1.000 đ/ngày/cuốn. Trần phạt không vượt quá giá bìa." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                            <TextBlock Text="• Phạt hỏng nhẹ: 20% giá bìa cuốn sách." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                            <TextBlock Text="• Phạt hỏng nặng: 50% giá bìa cuốn sách." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                            <TextBlock Text="• Mất sách: 100% giá bìa + phí xử lý (10.000 đ)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                            <TextBlock Text="• Gia hạn: Tối đa 2 lần, mỗi lần 7 ngày (không áp dụng nếu sách đã quá hạn hoặc có người đặt trước)." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                            <TextBlock Text="• Tự động thông báo và chuyển trạng thái Giữ chỗ 3 ngày nếu sách có học sinh đặt trước." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 3: DANH SÁCH QUÁ HẠN (CIR-07) -->
+            <TabItem Header="⚠️ DANH SÁCH QUÁ HẠN" FontSize="15" FontWeight="SemiBold" Padding="16,8">
+                <Border Style="{StaticResource CardBorder}" Margin="0,16,0,0">
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                            <TextBlock Text="Danh sách các lượt mượn đã quá hạn cần đôn đốc" FontSize="16" FontWeight="Bold" Foreground="{StaticResource DangerBrush}" VerticalAlignment="Center"/>
+                            <Button Content="Tải lại danh sách" Command="{Binding LoadOverdueLoansCommand}" Style="{StaticResource OutlinedButton}" HorizontalAlignment="Right" Padding="14,6"/>
+                        </DockPanel>
+
+                        <DataGrid ItemsSource="{Binding OverdueLoans}" Style="{StaticResource ModernDataGrid}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Mã vạch" Binding="{Binding CopyBarcode}" Width="120"/>
+                                <DataGridTextColumn Header="Tên sách" Binding="{Binding BookTitle}" Width="*"/>
+                                <DataGridTextColumn Header="Hạn trả" Binding="{Binding DueDateUtc, StringFormat='dd/MM/yyyy'}" Width="110"/>
+                                <DataGridTextColumn Header="Trạng thái" Binding="{Binding StatusText}" Width="140"/>
+                                <DataGridTemplateColumn Header="Thao tác" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="Gia hạn"
+                                                    Command="{Binding DataContext.RenewLoanCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource OutlinedButton}"
+                                                    Padding="8,2" FontSize="12"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>

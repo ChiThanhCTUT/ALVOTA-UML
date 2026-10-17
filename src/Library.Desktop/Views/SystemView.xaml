@@ -1,0 +1,142 @@
+<UserControl x:Class="Library.Desktop.Views.SystemView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="1000">
+
+    <Grid Margin="20">
+        <TabControl SelectedIndex="{Binding SelectedTabIndex}" BorderThickness="0" Background="Transparent">
+            <!-- TAB 1: CẤU HÌNH THÔNG SỐ (SYS-01) -->
+            <TabItem Header="⚙️ CẤU HÌNH HỆ THỐNG" FontSize="14" FontWeight="SemiBold" Padding="14,8">
+                <Border Style="{StaticResource CardBorder}" Margin="0,16,0,0">
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                            <TextBlock Text="Các thông số nghiệp vụ thư viện (SYS-01 / BR-01 → BR-12)" FontSize="15" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center"/>
+                            <Button Content="Tải lại thiết lập" Command="{Binding LoadSettingsCommand}" Style="{StaticResource OutlinedButton}" HorizontalAlignment="Right" Padding="12,4"/>
+                        </DockPanel>
+
+                        <DataGrid ItemsSource="{Binding SettingsList}" Style="{StaticResource ModernDataGrid}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Khóa cấu hình" Binding="{Binding Key}" Width="200" FontWeight="Bold"/>
+                                <DataGridTextColumn Header="Phân nhóm" Binding="{Binding Category}" Width="120"/>
+                                <DataGridTextColumn Header="Mô tả ý nghĩa" Binding="{Binding Description}" Width="*"/>
+                                <DataGridTemplateColumn Header="Giá trị hiện tại" Width="200">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Value, UpdateSourceTrigger=LostFocus}" Style="{StaticResource ModernTextBox}" Height="30"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Thao tác" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="Lưu"
+                                                    Command="{Binding DataContext.UpdateSettingCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource PrimaryButton}"
+                                                    Padding="10,2" FontSize="12"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+            </TabItem>
+
+            <!-- TAB 2: QUẢN LÝ TÀI KHOẢN (AUTH-05) -->
+            <TabItem Header="👥 QUẢN LÝ TÀI KHOẢN" FontSize="14" FontWeight="SemiBold" Padding="14,8">
+                <Grid Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="380"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Create User Form -->
+                    <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,16,0">
+                        <StackPanel>
+                            <TextBlock Text="Tạo tài khoản cán bộ mới" FontSize="15" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="Tên đăng nhập (*)" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding NewUsername, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Height="36" Margin="0,0,0,10"/>
+
+                            <TextBlock Text="Mật khẩu khởi tạo (*)" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding NewPassword, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Height="36" Margin="0,0,0,10"/>
+
+                            <TextBlock Text="Họ và tên cán bộ (*)" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding NewFullName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Height="36" Margin="0,0,0,10"/>
+
+                            <TextBlock Text="Vai trò hệ thống (*)" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <ComboBox SelectedValue="{Binding NewRole}" SelectedValuePath="Content" Height="36" Margin="0,0,0,20" Padding="8,4">
+                                <ComboBoxItem Content="Librarian" IsSelected="True"/>
+                                <ComboBoxItem Content="Assistant"/>
+                                <ComboBoxItem Content="Admin"/>
+                            </ComboBox>
+
+                            <Button Content="TẠO TÀI KHOẢN" Command="{Binding CreateUserCommand}" Style="{StaticResource PrimaryButton}" Height="40"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Users List -->
+                    <Border Grid.Column="1" Style="{StaticResource CardBorder}">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="Danh sách tài khoản hệ thống" FontSize="15" FontWeight="Bold" Margin="0,0,0,12"/>
+                            <DataGrid ItemsSource="{Binding UsersList}" Style="{StaticResource ModernDataGrid}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Tên đăng nhập" Binding="{Binding Username}" Width="140" FontWeight="Bold"/>
+                                    <DataGridTextColumn Header="Họ và tên" Binding="{Binding FullName}" Width="*"/>
+                                    <DataGridTextColumn Header="Vai trò" Binding="{Binding Role}" Width="120"/>
+                                    <DataGridCheckBoxColumn Header="Hoạt động" Binding="{Binding IsActive}" Width="90"/>
+                                    <DataGridTextColumn Header="Lần đăng nhập cuối" Binding="{Binding LastLoginAtUtc, StringFormat='dd/MM/yyyy HH:mm'}" Width="150"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 3: SAO LƯU & PHỤC HỒI (SYS-02) -->
+            <TabItem Header="💾 SAO LƯU DỮ LIỆU" FontSize="14" FontWeight="SemiBold" Padding="14,8">
+                <Border Style="{StaticResource CardBorder}" Margin="0,16,0,0">
+                    <StackPanel MaxWidth="600" HorizontalAlignment="Left">
+                        <TextBlock Text="Sao lưu và phục hồi cơ sở dữ liệu SQLite (SYS-02)" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,10"/>
+                        <TextBlock Text="Hệ thống tự động sao lưu định kỳ. Bạn cũng có thể thực hiện sao lưu thủ công bất kỳ lúc nào để phòng ngừa rủi ro mất điện hoặc hỏng ổ cứng." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,20"/>
+
+                        <Button Content="💾 THỰC HIỆN SAO LƯU CSDL NGAY" Command="{Binding CreateBackupCommand}" Style="{StaticResource SuccessButton}" Height="46" FontSize="15" Margin="0,0,0,20"/>
+
+                        <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="14">
+                            <StackPanel>
+                                <TextBlock Text="Bản sao lưu gần nhất:" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding LastBackupPath, TargetNullValue='Chưa tạo bản sao lưu trong phiên làm việc này.'}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource PrimaryDarkBrush}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </TabItem>
+
+            <!-- TAB 4: NHẬT KÝ KIỂM TOÁN (SYS-03, SYS-04) -->
+            <TabItem Header="📜 NHẬT KÝ KIỂM TOÁN" FontSize="14" FontWeight="SemiBold" Padding="14,8">
+                <Border Style="{StaticResource CardBorder}" Margin="0,16,0,0">
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                            <TextBlock Text="Nhật ký các thao tác quan trọng (Audit Log - SYS-03, SYS-04)" FontSize="15" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center"/>
+                            <Button Content="Tải lại nhật ký" Command="{Binding LoadAuditLogsCommand}" Style="{StaticResource OutlinedButton}" HorizontalAlignment="Right" Padding="12,4"/>
+                        </DockPanel>
+
+                        <DataGrid ItemsSource="{Binding AuditLogsList}" Style="{StaticResource ModernDataGrid}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Thời gian (UTC)" Binding="{Binding TimestampUtc, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="150"/>
+                                <DataGridTextColumn Header="Người thực hiện" Binding="{Binding Username}" Width="130" FontWeight="Bold"/>
+                                <DataGridTextColumn Header="Hành động" Binding="{Binding Action}" Width="130"/>
+                                <DataGridTextColumn Header="Đối tượng" Binding="{Binding EntityName}" Width="110"/>
+                                <DataGridTextColumn Header="Chi tiết" Binding="{Binding Details}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>

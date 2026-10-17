@@ -1,0 +1,80 @@
+<UserControl x:Class="Library.Desktop.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="1000">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24">
+        <StackPanel>
+            <!-- Title -->
+            <TextBlock Text="Tổng quan hoạt động thư viện"
+                       FontSize="22" FontWeight="Bold"
+                       Foreground="{StaticResource TextPrimaryBrush}"
+                       Margin="0,0,0,20"/>
+
+            <!-- Metric Cards Grid -->
+            <UniformGrid Columns="4" Margin="0,0,0,24">
+                <!-- Card 1: Books -->
+                <Border Style="{StaticResource CardBorder}" Margin="6">
+                    <StackPanel>
+                        <TextBlock Text="📚 TỔNG ĐẦU SÁCH" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding TotalBooks}" FontSize="28" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,8,0,4"/>
+                        <TextBlock Text="{Binding TotalCopies, StringFormat='{}Tổng số bản sao: {0}'}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 2: Active Loans -->
+                <Border Style="{StaticResource CardBorder}" Margin="6">
+                    <StackPanel>
+                        <TextBlock Text="🔄 ĐANG ĐƯỢC MƯỢN" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding ActiveLoans}" FontSize="28" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,8,0,4"/>
+                        <TextBlock Text="{Binding AvailableCopies, StringFormat='{}Bản sao sẵn sàng: {0}'}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 3: Overdue -->
+                <Border Style="{StaticResource CardBorder}" Margin="6">
+                    <StackPanel>
+                        <TextBlock Text="⚠️ SÁCH QUÁ HẠN" FontSize="12" FontWeight="Bold" Foreground="{StaticResource DangerBrush}"/>
+                        <TextBlock Text="{Binding OverdueLoans}" FontSize="28" FontWeight="Bold" Foreground="{StaticResource DangerBrush}" Margin="0,8,0,4"/>
+                        <TextBlock Text="Cần đôn đốc nhắc nhở" FontSize="12" Foreground="{StaticResource DangerBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 4: Monthly Revenue -->
+                <Border Style="{StaticResource CardBorder}" Margin="6">
+                    <StackPanel>
+                        <TextBlock Text="💰 THU PHẠT TRONG THÁNG" FontSize="12" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}"/>
+                        <TextBlock Text="{Binding MonthlyRevenue, StringFormat='{}{0:N0} đ'}" FontSize="26" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" Margin="0,8,0,4"/>
+                        <TextBlock Text="{Binding TotalActiveMembers, StringFormat='{}Bạn đọc hoạt động: {0}'}" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <!-- Overdue Alert Table Section -->
+            <Border Style="{StaticResource CardBorder}" Margin="6">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,16">
+                        <TextBlock Text="Danh sách mượn sách quá hạn gần đây" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                        <Button Content="Tải lại" Command="{Binding LoadDataCommand}" Style="{StaticResource OutlinedButton}" HorizontalAlignment="Right" Padding="12,6"/>
+                    </DockPanel>
+
+                    <DataGrid ItemsSource="{Binding OverdueList}" Style="{StaticResource ModernDataGrid}" MaxHeight="350">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Bạn đọc" Binding="{Binding MemberName}" Width="160"/>
+                            <DataGridTextColumn Header="Mã thẻ" Binding="{Binding CardNumber}" Width="110"/>
+                            <DataGridTextColumn Header="Lớp / Tổ" Binding="{Binding ClassOrDepartment}" Width="100"/>
+                            <DataGridTextColumn Header="Đầu sách" Binding="{Binding BookTitle}" Width="*"/>
+                            <DataGridTextColumn Header="Mã vạch" Binding="{Binding CopyBarcode}" Width="120"/>
+                            <DataGridTextColumn Header="Hạn trả" Binding="{Binding DueDateUtc, StringFormat='dd/MM/yyyy'}" Width="110"/>
+                            <DataGridTextColumn Header="Trễ (ngày)" Binding="{Binding OverdueDays}" Width="90"/>
+                            <DataGridTextColumn Header="Phạt dự kiến" Binding="{Binding EstimatedFine, StringFormat='{}{0:N0} đ'}" Width="120"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

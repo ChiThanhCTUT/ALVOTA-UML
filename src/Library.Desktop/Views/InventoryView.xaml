@@ -1,0 +1,106 @@
+<UserControl x:Class="Library.Desktop.Views.InventoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="1000">
+
+    <Grid Margin="20">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="420"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Column: Sessions List & Create Session Form -->
+        <StackPanel Grid.Column="0" Margin="0,0,16,0">
+            <!-- Create Session Form -->
+            <Border Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="📦 Tạo đợt kiểm kê mới (INV-01)" FontSize="15" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Tên đợt kiểm kê (*)" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding NewSessionName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Height="36" Margin="0,0,0,10"/>
+
+                    <TextBlock Text="Phạm vi kệ / Kho" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding NewShelfLocation, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Height="36" Margin="0,0,0,16"/>
+
+                    <Button Content="TẠO ĐỢT KIỂM KÊ" Command="{Binding CreateSessionCommand}" Style="{StaticResource PrimaryButton}" Height="40"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Sessions List -->
+            <Border Style="{StaticResource CardBorder}">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <TextBlock Text="Các đợt kiểm kê gần đây" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <Button Content="Tải lại" Command="{Binding LoadSessionsCommand}" Style="{StaticResource OutlinedButton}" HorizontalAlignment="Right" Padding="10,2" FontSize="12"/>
+                    </DockPanel>
+
+                    <ListBox ItemsSource="{Binding Sessions}"
+                             SelectedItem="{Binding SelectedSession}"
+                             Height="340" BorderThickness="0" Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="14" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{Binding ShelfLocation, StringFormat='Khu vực: {0}'}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{Binding Status, StringFormat='Trạng thái: {0}'}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{Binding TotalScanned, StringFormat='Đã kiểm: {0} cuốn'}" FontSize="12" Foreground="{StaticResource SuccessBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Right Column: Scanner Area (INV-02) -->
+        <Border Grid.Column="1" Style="{StaticResource CardBorder}">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,16">
+                    <TextBlock Text="Quét mã vạch kiểm tra thực tế (INV-02)" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center"/>
+                    <Button Content="Chốt &amp; Hoàn tất đợt kiểm kê"
+                            Command="{Binding CompleteSessionCommand}"
+                            Style="{StaticResource DangerButton}"
+                            HorizontalAlignment="Right" Padding="16,6"/>
+                </DockPanel>
+
+                <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="14" Margin="0,0,0,20">
+                    <StackPanel>
+                        <TextBlock Text="{Binding SelectedSession.Name, StringFormat='Đang kiểm kê: {0}'}" FontSize="15" FontWeight="Bold" Foreground="{StaticResource PrimaryDarkBrush}"/>
+                        <TextBlock Text="{Binding SelectedSession.Status, StringFormat='Trạng thái: {0}'}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="Quét mã vạch cuốn sách thực tế tại kệ:" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Text="{Binding ScanBarcodeInput, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource ModernTextBox}"
+                             Height="44" FontSize="16" FontWeight="Bold"/>
+                    <Button Grid.Column="1" Content="Xác nhận quét"
+                            Command="{Binding ScanBarcodeCommand}"
+                            Style="{StaticResource SuccessButton}"
+                            Height="44" Padding="18,0" Margin="10,0,0,0"/>
+                </Grid>
+
+                <!-- Scan Message feedback -->
+                <Border Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="Thông báo kết quả kiểm:" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                        <TextBlock Text="{Binding ScanMessage, TargetNullValue='Sẵn sàng quét mã vạch...'}"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

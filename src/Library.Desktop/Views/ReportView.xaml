@@ -1,0 +1,49 @@
+<UserControl x:Class="Library.Desktop.Views.ReportView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="1000">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Report Toolbar -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+            <DockPanel>
+                <TextBlock Text="📈 Báo cáo thống kê &amp; Xuất file (RPT-01 → RPT-06)" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,24,0"/>
+
+                <Button Content="Tổng hợp dữ liệu" Command="{Binding GenerateReportCommand}" Style="{StaticResource PrimaryButton}" Height="38" Padding="14,0" Margin="0,0,10,0"/>
+
+                <Button Content="📄 Xuất PDF (QuestPDF)" Command="{Binding ExportPdfCommand}" Style="{StaticResource DangerButton}" Height="38" Padding="14,0" Margin="0,0,10,0"/>
+
+                <Button Content="📊 Xuất Excel (ClosedXML)" Command="{Binding ExportExcelCommand}" Style="{StaticResource SuccessButton}" Height="38" Padding="14,0"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Report Preview DataGrid -->
+        <Border Grid.Row="1" Style="{StaticResource CardBorder}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Báo cáo danh sách mượn sách quá hạn &amp; Tiền phạt phát sinh" FontSize="15" FontWeight="Bold" Margin="0,0,0,12"/>
+
+                <DataGrid ItemsSource="{Binding OverdueReportItems}" Style="{StaticResource ModernDataGrid}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Bạn đọc" Binding="{Binding MemberName}" Width="160"/>
+                        <DataGridTextColumn Header="Mã thẻ" Binding="{Binding CardNumber}" Width="110"/>
+                        <DataGridTextColumn Header="Lớp / Tổ" Binding="{Binding ClassOrDepartment}" Width="100"/>
+                        <DataGridTextColumn Header="SĐT" Binding="{Binding PhoneNumber}" Width="110"/>
+                        <DataGridTextColumn Header="Tên sách" Binding="{Binding BookTitle}" Width="*"/>
+                        <DataGridTextColumn Header="Mã vạch" Binding="{Binding Barcode}" Width="120"/>
+                        <DataGridTextColumn Header="Hạn trả" Binding="{Binding DueDateUtc, StringFormat='dd/MM/yyyy'}" Width="110"/>
+                        <DataGridTextColumn Header="Quá hạn (ngày)" Binding="{Binding OverdueDays}" Width="110"/>
+                        <DataGridTextColumn Header="Tiền phạt dự kiến" Binding="{Binding EstimatedFine, StringFormat='{}{0:N0} đ'}" Width="130"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

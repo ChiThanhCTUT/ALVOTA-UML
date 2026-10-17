@@ -1,0 +1,87 @@
+<UserControl x:Class="Library.Desktop.Views.FineView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:enums="clr-namespace:Library.Domain.Enums;assembly=Library.Domain"
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="1000">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Search & Filter Toolbar -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+            <DockPanel>
+                <TextBlock Text="💰 Quản lý tiền phạt &amp; Biên lai" FontSize="18" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" Margin="0,0,24,0"/>
+
+                <TextBox Text="{Binding SearchTerm, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource ModernTextBox}"
+                         Width="260" Height="38" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                <ComboBox SelectedValue="{Binding SelectedStatusFilter}"
+                          SelectedValuePath="Tag"
+                          Height="38" Width="180" VerticalAlignment="Center" Margin="0,0,10,0" Padding="8,4">
+                    <ComboBoxItem Content="Tất cả trạng thái" Tag="{x:Null}"/>
+                    <ComboBoxItem Content="Chưa nộp (Pending)" Tag="{x:Static enums:FineStatus.Pending}" IsSelected="True"/>
+                    <ComboBoxItem Content="Đã nộp (Paid)" Tag="{x:Static enums:FineStatus.Paid}"/>
+                    <ComboBoxItem Content="Đã miễn (Waived)" Tag="{x:Static enums:FineStatus.Waived}"/>
+                </ComboBox>
+
+                <Button Content="Tìm kiếm / Lọc" Command="{Binding SearchCommand}"
+                        Style="{StaticResource PrimaryButton}"
+                        Height="38" Padding="16,0"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Fines DataGrid -->
+        <Border Grid.Row="1" Style="{StaticResource CardBorder}">
+            <DataGrid ItemsSource="{Binding Fines}" Style="{StaticResource ModernDataGrid}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Bạn đọc" Binding="{Binding MemberName}" Width="160"/>
+                    <DataGridTextColumn Header="Mã thẻ" Binding="{Binding CardNumber}" Width="110"/>
+                    <DataGridTextColumn Header="Lý do phạt" Binding="{Binding Reason}" Width="130"/>
+                    <DataGridTextColumn Header="Tổng phạt" Binding="{Binding Amount, StringFormat='{}{0:N0} đ'}" Width="110"/>
+                    <DataGridTextColumn Header="Đã nộp" Binding="{Binding PaidAmount, StringFormat='{}{0:N0} đ'}" Width="100"/>
+                    <DataGridTextColumn Header="Còn nợ" Binding="{Binding RemainingAmount, StringFormat='{}{0:N0} đ'}" Width="110"/>
+                    <DataGridTextColumn Header="Trạng thái" Binding="{Binding Status}" Width="100"/>
+                    <DataGridTextColumn Header="Mô tả" Binding="{Binding Description}" Width="*"/>
+                    <DataGridTemplateColumn Header="Thao tác" Width="180">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="Thu tiền"
+                                            Command="{Binding DataContext.PayFineCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource SuccessButton}"
+                                            Padding="8,2" FontSize="12" Margin="0,0,6,0"/>
+
+                                    <Button Content="Miễn phạt"
+                                            Command="{Binding DataContext.WaiveFineCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource OutlinedButton}"
+                                            Padding="8,2" FontSize="12"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <!-- Pagination Footer -->
+        <DockPanel Grid.Row="2" Margin="0,12,0,0">
+            <TextBlock Text="{Binding TotalCount, StringFormat='{}Tổng số: {0} phiếu phạt'}" FontSize="13" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="◀ Trang trước" Command="{Binding PreviousPageCommand}" Style="{StaticResource OutlinedButton}" Margin="0,0,8,0" Padding="12,4"/>
+                <TextBlock Text="{Binding PageIndex, StringFormat='{}Trang {0}'}" VerticalAlignment="Center" FontWeight="Bold" Margin="4,0,4,0"/>
+                <TextBlock Text="{Binding TotalPages, StringFormat='{}/ {0}'}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <Button Content="Trang sau ▶" Command="{Binding NextPageCommand}" Style="{StaticResource OutlinedButton}" Padding="12,4"/>
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</UserControl>
