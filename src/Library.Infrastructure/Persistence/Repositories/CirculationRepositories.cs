@@ -85,7 +85,7 @@ public sealed class LoanRepository : ILoanRepository
         return await _context.Loans
             .Include(l => l.Member)
             .Include(l => l.Items).ThenInclude(i => i.BookCopy).ThenInclude(c => c!.Book)
-            .FirstOrDefaultAsync(l => l.Id == id, ct);
+            .FirstOrDefaultAsync(l => l.Id == id || l.Items.Any(i => i.Id == id), ct);
     }
 
     public async Task<LoanItem?> GetActiveLoanItemByCopyBarcodeAsync(string barcode, CancellationToken ct = default)

@@ -25,7 +25,9 @@ public sealed class BackupService : IBackupService
 
         if (File.Exists(_databaseFilePath))
         {
-            await Task.Run(() => File.Copy(_databaseFilePath, destPath, overwrite: true), ct);
+            await using var sourceStream = new FileStream(_databaseFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            await using var destStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            await sourceStream.CopyToAsync(destStream, ct);
         }
         else
         {

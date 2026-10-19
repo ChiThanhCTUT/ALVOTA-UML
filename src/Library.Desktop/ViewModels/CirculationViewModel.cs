@@ -214,6 +214,12 @@ public partial class CirculationViewModel : ObservableObject
             ReturnHasError = false;
             ReturnBarcodeInput = string.Empty;
             ReturnNotes = string.Empty;
+
+            if (SelectedMember != null)
+            {
+                await SearchMemberAsync(ct);
+            }
+            await LoadOverdueLoansAsync(ct);
         }
         catch (Exception ex)
         {
@@ -252,6 +258,7 @@ public partial class CirculationViewModel : ObservableObject
             {
                 await SearchMemberAsync(ct);
             }
+            await LoadOverdueLoansAsync(ct);
         }
         catch (Exception ex)
         {

@@ -76,7 +76,7 @@ public sealed class BorrowBookCommandHandler : IRequestHandler<BorrowBookCommand
 
         var activeLoans = (await _loans.GetActiveLoanItemsByMemberIdAsync(member.Id, ct)) ?? Array.Empty<LoanItem>();
         var hasOverdue = activeLoans.Any(i => i.DueDateUtc < now);
-        var unpaidFines = (await _fines.GetUnpaidByMemberIdAsync(member.Id, ct))?.Sum(f => f.Amount) ?? 0m;
+        var unpaidFines = (await _fines.GetUnpaidByMemberIdAsync(member.Id, ct))?.Sum(f => f.RemainingAmount) ?? 0m;
 
         var canBorrowResult = CirculationPolicyService.CanBorrow(
             member, copy, activeLoans.Count, hasOverdue, unpaidFines, now);
