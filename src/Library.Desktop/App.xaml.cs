@@ -11,7 +11,7 @@ namespace Library.Desktop;
 
 public partial class App : System.Windows.Application
 {
-    private const string LogPath = @"C:\Users\Vinh\Downloads\QUAN_LY_THU_VIEN\app_log.txt";
+    private const string LogPath = @"C:\Users\SuBin\Downloads\QUAN_LY_THU_VIEN\app_log.txt";
     private readonly IHost _host;
 
     public App()
@@ -33,7 +33,7 @@ public partial class App : System.Windows.Application
                 {
                     // Core Clean Architecture Layers
                     services.AddApplication();
-                    var workspaceDb = @"C:\Users\Vinh\Downloads\QUAN_LY_THU_VIEN\library.db";
+                    var workspaceDb = @"C:\Users\SuBin\Downloads\QUAN_LY_THU_VIEN\library.db";
                     var dbPath = System.IO.File.Exists(workspaceDb)
                         ? workspaceDb
                         : System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "library.db");
