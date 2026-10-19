@@ -17,8 +17,12 @@ public partial class LoginViewModel : ObservableObject
 
     [ObservableProperty] private string _username = "admin";
     [ObservableProperty] private string _password = "Admin@123";
-    [ObservableProperty] private string? _errorMessage;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasError))]
+    private string? _errorMessage;
     [ObservableProperty] private bool _isBusy;
+
+    public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
 
     public LoginViewModel(
         IMediator mediator,

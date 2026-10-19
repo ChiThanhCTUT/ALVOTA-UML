@@ -20,6 +20,8 @@ public record MemberDto(
     int ActiveLoansCount,
     decimal UnpaidFineAmount)
 {
+    public int MaxBorrowLimit => Type == MemberType.Teacher ? 10 : 3;
+
     public static MemberDto From(Member member, int activeLoans = 0, decimal unpaidFines = 0) => new(
         member.Id,
         member.CardNumber,

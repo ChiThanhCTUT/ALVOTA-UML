@@ -17,6 +17,11 @@ public record LoanItemDto(
     bool IsOverdue,
     int OverdueDays)
 {
+    public string CopyBarcode => Barcode;
+    public string StatusText => ReturnedAtUtc.HasValue
+        ? "Đã trả"
+        : (IsOverdue ? $"Quá hạn ({OverdueDays} ngày)" : "Đang mượn");
+
     public static LoanItemDto From(LoanItem item, DateTime utcNow)
     {
         var isOverdue = item.IsOverdue(utcNow);

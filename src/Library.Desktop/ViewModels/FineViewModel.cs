@@ -122,6 +122,7 @@ public partial class FineViewModel : ObservableObject
             await _dialog.ShowInfoAsync(
                 $"Đã thu phạt thành công!\nMã biên lai: {result.Value.ReceiptNumber}\nSố tiền: {result.Value.Amount:N0} đ");
 
+            IsBusy = false;
             await LoadFinesAsync(ct);
         }
         catch (Exception ex)
@@ -157,6 +158,7 @@ public partial class FineViewModel : ObservableObject
 
             _audio.PlaySuccess();
             await _dialog.ShowInfoAsync("Đã miễn giảm phạt thành công và ghi log kiểm toán!");
+            IsBusy = false;
             await LoadFinesAsync(ct);
         }
         catch (Exception ex)

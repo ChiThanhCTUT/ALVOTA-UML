@@ -66,6 +66,8 @@ public sealed class BookAuthorConfiguration : IEntityTypeConfiguration<BookAutho
             .WithMany(a => a.BookAuthors)
             .HasForeignKey(x => x.AuthorId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasQueryFilter(x => !x.Book.IsDeleted && !x.Author.IsDeleted);
     }
 }
 

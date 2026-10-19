@@ -79,6 +79,7 @@ public partial class InventoryViewModel : ObservableObject
             {
                 _audio.PlaySuccess();
                 await _dialog.ShowInfoAsync($"Tạo đợt kiểm kê '{result.Value.Name}' thành công!");
+                IsBusy = false;
                 await LoadSessionsAsync(ct);
                 SelectedSession = Sessions.FirstOrDefault(s => s.Id == result.Value.Id);
             }
@@ -120,14 +121,17 @@ public partial class InventoryViewModel : ObservableObject
         ScanMessage = null;
         try
         {
-            var command = new ScanInventoryBarcodeCommand(SelectedSession.Id, ScanBarcodeInput.Trim());
+            var currentSessionId = SelectedSession.Id;
+            var command = new ScanInventoryBarcodeCommand(currentSessionId, ScanBarcodeInput.Trim());
             var result = await _mediator.Send(command, ct);
             if (result.IsSuccess)
             {
                 _audio.PlaySuccess();
                 ScanMessage = $"ĐÃ KIỂM: Bản sao mã [{result.Value.Barcode}] - Sách: {result.Value.BookTitle}";
                 ScanBarcodeInput = string.Empty;
+                IsBusy = false;
                 await LoadSessionsAsync(ct);
+                SelectedSession = Sessions.FirstOrDefault(s => s.Id == currentSessionId);
             }
             else
             {
@@ -158,12 +162,15 @@ public partial class InventoryViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var result = await _mediator.Send(new CompleteInventorySessionCommand(SelectedSession.Id), ct);
+            var currentSessionId = SelectedSession.Id;
+            var result = await _mediator.Send(new CompleteInventorySessionCommand(currentSessionId), ct);
             if (result.IsSuccess)
             {
                 _audio.PlaySuccess();
                 await _dialog.ShowInfoAsync($"Đợt kiểm kê '{result.Value.Name}' đã hoàn tất và lưu trữ kết quả!");
+                IsBusy = false;
                 await LoadSessionsAsync(ct);
+                SelectedSession = Sessions.FirstOrDefault(s => s.Id == currentSessionId);
             }
             else
             {

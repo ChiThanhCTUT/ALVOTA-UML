@@ -36,7 +36,8 @@ public static class DependencyInjection
         services.AddSingleton<IBarcodeGenerator, BarcodeGenerator>();
         services.AddSingleton<IExcelService, ExcelService>();
         services.AddSingleton<IPdfService, PdfService>();
-        services.AddSingleton<IBackupService>(sp => new BackupService("library.db"));
+        var dbFilePath = connectionString.Replace("Data Source=", "", StringComparison.OrdinalIgnoreCase).Trim().Trim('"');
+        services.AddSingleton<IBackupService>(sp => new BackupService(dbFilePath));
         services.AddSingleton<CurrentUserService>();
         services.AddSingleton<ICurrentUserService>(sp => sp.GetRequiredService<CurrentUserService>());
         services.AddSingleton<TimeProvider>(TimeProvider.System);

@@ -19,6 +19,18 @@ public partial class MainViewModel : ObservableObject
 
     public bool CanAccessSystem => CurrentUserRole == "Admin";
     public bool CanAccessCatalogAndFines => CurrentUserRole != "Assistant";
+    public bool IsLoggedIn => CurrentView is not LoginViewModel;
+
+    partial void OnCurrentViewChanged(object? value)
+    {
+        OnPropertyChanged(nameof(IsLoggedIn));
+    }
+
+    partial void OnCurrentUserRoleChanged(string value)
+    {
+        OnPropertyChanged(nameof(CanAccessSystem));
+        OnPropertyChanged(nameof(CanAccessCatalogAndFines));
+    }
 
     // ViewModels
     public DashboardViewModel DashboardVM { get; }
@@ -56,6 +68,8 @@ public partial class MainViewModel : ObservableObject
         ReportVM = reportVM;
         SystemVM = systemVM;
 
+        _navigation.CurrentViewModelChanged += OnNavigationChanged;
+
         CurrentUserName = _currentUser.Username ?? "Quản trị viên";
         CurrentUserRole = _currentUser.Role ?? "Admin";
 
@@ -64,9 +78,29 @@ public partial class MainViewModel : ObservableObject
         _ = DashboardVM.LoadDataAsync();
     }
 
+    private void OnNavigationChanged()
+    {
+        if (_navigation.CurrentViewModel is LoginViewModel loginVm)
+        {
+            CurrentView = loginVm;
+        }
+        else if (_navigation.CurrentViewModel is MainViewModel)
+        {
+            CurrentUserName = _currentUser.Username ?? "Quản trị viên";
+            CurrentUserRole = _currentUser.Role ?? "Admin";
+            Navigate("Dashboard");
+        }
+        else if (_navigation.CurrentViewModel != null)
+        {
+            CurrentView = _navigation.CurrentViewModel;
+        }
+    }
+
     [RelayCommand]
     public void Navigate(string viewName)
     {
+        if (!IsLoggedIn) return;
+
         SelectedMenu = viewName;
         switch (viewName)
         {
@@ -75,13 +109,19 @@ public partial class MainViewModel : ObservableObject
                 _ = DashboardVM.LoadDataAsync();
                 break;
             case "Circulation":
+            case "CirculationBorrow":
+                CirculationVM.SelectedTabIndex = 0;
+                CurrentView = CirculationVM;
+                _ = CirculationVM.LoadOverdueLoansAsync();
+                break;
+            case "CirculationReturn":
+                CirculationVM.SelectedTabIndex = 1;
                 CurrentView = CirculationVM;
                 _ = CirculationVM.LoadOverdueLoansAsync();
                 break;
             case "Catalog":
                 CurrentView = CatalogVM;
-                _ = CatalogVM.LoadLookupsAsync();
-                _ = CatalogVM.LoadBooksAsync();
+                _ = LoadCatalogSequentialAsync();
                 break;
             case "Members":
                 CurrentView = MemberVM;
@@ -101,11 +141,22 @@ public partial class MainViewModel : ObservableObject
                 break;
             case "System":
                 CurrentView = SystemVM;
-                _ = SystemVM.LoadSettingsAsync();
-                _ = SystemVM.LoadUsersAsync();
-                _ = SystemVM.LoadAuditLogsAsync();
+                _ = LoadSystemSequentialAsync();
                 break;
         }
+    }
+
+    private async Task LoadCatalogSequentialAsync()
+    {
+        await CatalogVM.LoadLookupsAsync();
+        await CatalogVM.LoadBooksAsync();
+    }
+
+    private async Task LoadSystemSequentialAsync()
+    {
+        await SystemVM.LoadSettingsAsync();
+        await SystemVM.LoadUsersAsync();
+        await SystemVM.LoadAuditLogsAsync();
     }
 
     [RelayCommand]

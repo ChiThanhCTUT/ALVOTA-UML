@@ -74,7 +74,8 @@ public sealed class BookRepository : IBookRepository
 
     public void Update(Book book)
     {
-        _context.Books.Update(book);
+        if (_context.Entry(book).State == EntityState.Detached)
+            _context.Books.Update(book);
     }
 
     public async Task<bool> ExistsIsbnAsync(string isbn, Guid? excludeBookId = null, CancellationToken ct = default)
@@ -128,7 +129,8 @@ public sealed class BookCopyRepository : IBookCopyRepository
 
     public void Update(BookCopy copy)
     {
-        _context.BookCopies.Update(copy);
+        if (_context.Entry(copy).State == EntityState.Detached)
+            _context.BookCopies.Update(copy);
     }
 
     public async Task<bool> ExistsBarcodeAsync(string barcode, Guid? excludeCopyId = null, CancellationToken ct = default)

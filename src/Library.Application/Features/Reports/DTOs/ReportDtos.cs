@@ -36,4 +36,7 @@ public record OverdueLoanReportDto(
     DateTime BorrowDateUtc,
     DateTime DueDateUtc,
     int OverdueDays,
-    decimal EstimatedFine);
+    decimal EstimatedFine)
+{
+    public string CopyBarcode => Barcode;
+}

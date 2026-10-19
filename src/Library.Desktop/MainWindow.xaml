@@ -76,19 +76,20 @@
 
     <!-- KeyBindings for shortcuts (F2, F3, Ctrl+F) -->
     <Window.InputBindings>
-        <KeyBinding Key="F2" Command="{Binding NavigateCommand}" CommandParameter="Circulation"/>
-        <KeyBinding Key="F3" Command="{Binding NavigateCommand}" CommandParameter="Circulation"/>
+        <KeyBinding Key="F2" Command="{Binding NavigateCommand}" CommandParameter="CirculationBorrow"/>
+        <KeyBinding Key="F3" Command="{Binding NavigateCommand}" CommandParameter="CirculationReturn"/>
         <KeyBinding Key="F" Modifiers="Ctrl" Command="{Binding NavigateCommand}" CommandParameter="Catalog"/>
     </Window.InputBindings>
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="240"/>
+            <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <!-- LEFT SIDEBAR -->
-        <Border Grid.Column="0" Background="#0F172A">
+        <Border Grid.Column="0" Width="240" Background="#0F172A"
+                Visibility="{Binding IsLoggedIn, Converter={StaticResource BooleanToVisibilityConverter}}">
             <DockPanel>
                 <!-- App Logo & Brand -->
                 <Border DockPanel.Dock="Top" Padding="20,24" BorderBrush="#1E293B" BorderThickness="0,0,0,1">

@@ -2,11 +2,21 @@ using Library.Domain.Entities;
 
 namespace Library.Application.Features.System.DTOs;
 
-public record SettingDto(
-    string Key,
-    string Value,
-    string? Description,
-    string Category);
+public sealed class SettingDto
+{
+    public string Key { get; set; }
+    public string Value { get; set; }
+    public string? Description { get; set; }
+    public string Category { get; set; }
+
+    public SettingDto(string key, string value, string? description, string category)
+    {
+        Key = key;
+        Value = value;
+        Description = description;
+        Category = category;
+    }
+}
 
 public record AuditLogDto(
     Guid Id,

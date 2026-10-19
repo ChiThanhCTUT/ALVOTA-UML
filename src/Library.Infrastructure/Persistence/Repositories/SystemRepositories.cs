@@ -32,9 +32,17 @@ public sealed class InventoryRepository : IInventoryRepository
     }
 
     public async Task AddSessionAsync(InventorySession session, CancellationToken ct = default) => await _context.InventorySessions.AddAsync(session, ct);
-    public void UpdateSession(InventorySession session) => _context.InventorySessions.Update(session);
+    public void UpdateSession(InventorySession session)
+    {
+        if (_context.Entry(session).State == EntityState.Detached)
+            _context.InventorySessions.Update(session);
+    }
     public async Task AddItemAsync(InventoryItem item, CancellationToken ct = default) => await _context.InventoryItems.AddAsync(item, ct);
-    public void UpdateItem(InventoryItem item) => _context.InventoryItems.Update(item);
+    public void UpdateItem(InventoryItem item)
+    {
+        if (_context.Entry(item).State == EntityState.Detached)
+            _context.InventoryItems.Update(item);
+    }
 }
 
 public sealed class UserRepository : IUserRepository
@@ -59,7 +67,11 @@ public sealed class UserRepository : IUserRepository
     }
 
     public async Task AddAsync(User user, CancellationToken ct = default) => await _context.Users.AddAsync(user, ct);
-    public void Update(User user) => _context.Users.Update(user);
+    public void Update(User user)
+    {
+        if (_context.Entry(user).State == EntityState.Detached)
+            _context.Users.Update(user);
+    }
 
     public async Task<Role?> GetRoleByNameAsync(string roleName, CancellationToken ct = default)
     {

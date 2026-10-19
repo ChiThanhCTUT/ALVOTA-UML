@@ -41,7 +41,7 @@
 
                                 <!-- Member Info Display -->
                                 <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="12" Margin="0,0,0,10"
-                                        Visibility="{Binding SelectedMember, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        Visibility="{Binding HasSelectedMember, Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <StackPanel>
                                         <TextBlock Text="{Binding SelectedMember.FullName}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                         <TextBlock Text="{Binding SelectedMember.ClassOrDepartment, StringFormat='Lớp / Tổ: {0}'}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
@@ -74,7 +74,7 @@
 
                                 <!-- Message Box -->
                                 <TextBlock Text="{Binding BorrowMessage}"
-                                           Foreground="{Binding BorrowHasError, Converter={x:Null}}"
+                                           Foreground="{StaticResource PrimaryDarkBrush}"
                                            FontSize="13"
                                            FontWeight="SemiBold"
                                            TextWrapping="Wrap"

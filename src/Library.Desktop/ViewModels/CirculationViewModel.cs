@@ -25,10 +25,13 @@ public partial class CirculationViewModel : ObservableObject
 
     // --- MƯỢN SÁCH (BORROW) ---
     [ObservableProperty] private string _memberCardInput = string.Empty;
-    [ObservableProperty] private MemberDto? _selectedMember;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedMember))]
+    private MemberDto? _selectedMember;
     [ObservableProperty] private string _bookBarcodeInput = string.Empty;
     [ObservableProperty] private string? _borrowMessage;
     [ObservableProperty] private bool _borrowHasError;
+    public bool HasSelectedMember => SelectedMember != null;
     public ObservableCollection<LoanItemDto> MemberActiveLoans { get; } = new();
 
     // --- TRẢ SÁCH (RETURN) ---
@@ -141,12 +144,13 @@ public partial class CirculationViewModel : ObservableObject
             }
 
             _audio.PlaySuccess();
-            BorrowMessage = $"MƯỢN THÀNH CÔNG! Hạn trả: {result.Value.DueDateUtc.ToLocalTime():dd/MM/yyyy}";
-            BorrowHasError = false;
+            var successMsg = $"MƯỢN THÀNH CÔNG! Hạn trả: {result.Value.DueDateUtc.ToLocalTime():dd/MM/yyyy}";
             BookBarcodeInput = string.Empty;
 
             // Refresh member active loans
             await SearchMemberAsync(ct);
+            BorrowMessage = successMsg;
+            BorrowHasError = false;
         }
         catch (Exception ex)
         {

@@ -103,6 +103,7 @@ public sealed class ScanInventoryBarcodeCommandHandler : IRequestHandler<ScanInv
                 CreatedBy = "InventoryScanner"
             };
             session.Items.Add(existingItem);
+            await _inventory.AddItemAsync(existingItem, ct);
         }
 
         session.TotalScanned = session.Items.Count(i => i.ScannedAtUtc.HasValue);

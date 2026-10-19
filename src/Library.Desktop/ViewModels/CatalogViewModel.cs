@@ -192,6 +192,7 @@ public partial class CatalogViewModel : ObservableObject
             NewTitle = string.Empty;
             NewIsbn = string.Empty;
 
+            IsBusy = false;
             await LoadBooksAsync(ct);
         }
         catch (Exception ex)
@@ -219,6 +220,7 @@ public partial class CatalogViewModel : ObservableObject
             {
                 _audio.PlaySuccess();
                 await _dialog.ShowInfoAsync($"Đã bổ sung 2 bản sao mới cho sách '{book.Title}' thành công!");
+                IsBusy = false;
                 await LoadBooksAsync(ct);
             }
             else

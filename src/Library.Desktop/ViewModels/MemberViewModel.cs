@@ -150,6 +150,7 @@ public partial class MemberViewModel : ObservableObject
             NewPhone = string.Empty;
             NewEmail = string.Empty;
 
+            IsBusy = false;
             await LoadMembersAsync(ct);
         }
         catch (Exception ex)

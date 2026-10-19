@@ -36,7 +36,7 @@ public sealed class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Re
         foreach (var m in pagedMembers.Items)
         {
             var activeLoans = (await _loans.GetActiveLoanItemsByMemberIdAsync(m.Id, ct)).Count;
-            var unpaidFines = (await _fines.GetUnpaidByMemberIdAsync(m.Id, ct)).Sum(f => f.Amount);
+            var unpaidFines = (await _fines.GetUnpaidByMemberIdAsync(m.Id, ct)).Sum(f => f.RemainingAmount);
             dtoList.Add(MemberDto.From(m, activeLoans, unpaidFines));
         }
 
@@ -71,7 +71,7 @@ public sealed class GetMemberByIdQueryHandler : IRequestHandler<GetMemberByIdQue
         if (member is null) return Result.Failure<MemberDto>(DomainErrors.Member.NotFound);
 
         var activeLoans = (await _loans.GetActiveLoanItemsByMemberIdAsync(member.Id, ct)).Count;
-        var unpaidFines = (await _fines.GetUnpaidByMemberIdAsync(member.Id, ct)).Sum(f => f.Amount);
+        var unpaidFines = (await _fines.GetUnpaidByMemberIdAsync(member.Id, ct)).Sum(f => f.RemainingAmount);
 
         return Result.Success(MemberDto.From(member, activeLoans, unpaidFines));
     }
@@ -98,7 +98,7 @@ public sealed class GetMemberByCardNumberQueryHandler : IRequestHandler<GetMembe
         if (member is null) return Result.Failure<MemberDto>(DomainErrors.Member.NotFound);
 
         var activeLoans = (await _loans.GetActiveLoanItemsByMemberIdAsync(member.Id, ct)).Count;
-        var unpaidFines = (await _fines.GetUnpaidByMemberIdAsync(member.Id, ct)).Sum(f => f.Amount);
+        var unpaidFines = (await _fines.GetUnpaidByMemberIdAsync(member.Id, ct)).Sum(f => f.RemainingAmount);
 
         return Result.Success(MemberDto.From(member, activeLoans, unpaidFines));
     }
