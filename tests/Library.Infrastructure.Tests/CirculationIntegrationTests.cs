@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Library.Application.Features.Catalog.Commands;
 using Library.Application.Features.Circulation.Commands.BorrowBook;
 using Library.Application.Features.Circulation.Commands.ReturnBook;
 using Library.Application.Features.Fines.Commands;
@@ -84,6 +85,7 @@ public class CirculationIntegrationTests : IDisposable
         var fines = new FineRepository(_context);
         var reservations = new ReservationRepository(_context);
         var currentUser = new CurrentUserService();
+        currentUser.SetUser(Guid.NewGuid().ToString(), "librarian", "Librarian");
 
         // 2. Act: Borrow book
         var borrowHandler = new BorrowBookCommandHandler(members, copies, loans, fines, reservations, _uow, _time);
@@ -162,6 +164,86 @@ public class CirculationIntegrationTests : IDisposable
         result1.IsSuccess.Should().BeTrue();
         result2.IsFailure.Should().BeTrue();
         result2.Error.Code.Should().Be("CIR.COPY_UNAVAILABLE");
+    }
+
+    [Fact]
+    public async Task CreateAndUpdateBook_WithUntrackedAuthors_PopulatesAuthorNamesWithoutNullRef() // BUG-004
+    {
+        // Arrange
+        var category = new Category { Name = "Văn học thiếu nhi" };
+        var publisher = new Publisher { Name = "NXB Trẻ" };
+        var author1 = new Author { FullName = "Nguyễn Nhật Ánh" };
+        var author2 = new Author { FullName = "Tô Hoài" };
+
+        await _context.Categories.AddAsync(category);
+        await _context.Publishers.AddAsync(publisher);
+        await _context.Authors.AddRangeAsync(author1, author2);
+        await _context.SaveChangesAsync();
+
+        // Detach all entities to simulate separate AsNoTracking lookup query in UI (BUG-003 / BUG-004)
+        _context.ChangeTracker.Clear();
+
+        var books = new BookRepository(_context);
+        var copies = new BookCopyRepository(_context);
+        var createHandler = new CreateBookCommandHandler(books, copies, _uow, _time);
+
+        // Act 1: Create book with author1
+        var createResult = await createHandler.Handle(new CreateBookCommand(
+            Title: "Mắt Biếc",
+            Subtitle: null,
+            Isbn: "978-604-1-99999-1",
+            PublicationYear: 2023,
+            CategoryId: category.Id,
+            PublisherId: publisher.Id,
+            Language: "Tiếng Việt",
+            PageCount: 250,
+            Price: 95000m,
+            CoverImagePath: null,
+            Summary: null,
+            IsReferenceOnly: false,
+            AuthorIds: new[] { author1.Id },
+            InitialCopiesCount: 2,
+            InitialShelfLocation: "Kệ A1"), CancellationToken.None);
+
+        // Assert 1
+        createResult.IsSuccess.Should().BeTrue();
+        createResult.Value.Authors.Should().ContainSingle().Which.Should().Be("Nguyễn Nhật Ánh");
+        createResult.Value.CategoryName.Should().Be("Văn học thiếu nhi");
+        createResult.Value.PublisherName.Should().Be("NXB Trẻ");
+        createResult.Value.TotalCopies.Should().Be(2);
+
+        // Clear tracker again and test UpdateBookCommand with author2
+        _context.ChangeTracker.Clear();
+        var updateHandler = new UpdateBookCommandHandler(books, _uow, _time);
+        var updateResult = await updateHandler.Handle(new UpdateBookCommand(
+            Id: createResult.Value.Id,
+            Title: "Mắt Biếc (Tái bản)",
+            Subtitle: null,
+            Isbn: "978-604-1-99999-1",
+            PublicationYear: 2024,
+            CategoryId: category.Id,
+            PublisherId: publisher.Id,
+            Language: "Tiếng Việt",
+            PageCount: 260,
+            Price: 100000m,
+            CoverImagePath: null,
+            Summary: null,
+            IsReferenceOnly: false,
+            AuthorIds: new[] { author1.Id, author2.Id }), CancellationToken.None);
+
+        // Assert 2
+        updateResult.IsSuccess.Should().BeTrue();
+        updateResult.Value.Authors.Should().BeEquivalentTo(new[] { "Nguyễn Nhật Ánh", "Tô Hoài" });
+    }
+
+    [Fact]
+    public void CurrentUserService_DefaultsToUnauthenticatedOnStartup() // BUG-001
+    {
+        var currentUser = new CurrentUserService();
+        currentUser.IsAuthenticated.Should().BeFalse();
+        currentUser.UserId.Should().BeNull();
+        currentUser.Username.Should().BeNull();
+        currentUser.Role.Should().BeNull();
     }
 
     public void Dispose()

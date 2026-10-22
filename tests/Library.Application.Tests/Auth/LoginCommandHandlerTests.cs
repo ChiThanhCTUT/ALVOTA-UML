@@ -51,4 +51,39 @@ public class LoginCommandHandlerTests
         user.FailedLoginAttempts.Should().Be(5);
         user.LockoutEndUtc.Should().Be(FixedNow.AddMinutes(5));
     }
+
+    [Fact]
+    public async Task Handle_InactiveUser_ReturnsAccountDisabledError() // BUG-002
+    {
+        // Arrange
+        var time = new FakeTimeProvider(FixedNow);
+        var user = new User
+        {
+            Username = "disabled_user",
+            PasswordHash = "hashed_pw",
+            Salt = "salt",
+            IsActive = false,
+            Role = new Role { Name = "Librarian" }
+        };
+
+        var mockUsers = new Mock<IUserRepository>();
+        mockUsers.Setup(u => u.GetByUsernameAsync("disabled_user", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+
+        var mockHasher = new Mock<IPasswordHasher>();
+        var mockUow = new Mock<IUnitOfWork>();
+
+        var handler = new LoginCommandHandler(
+            mockUsers.Object,
+            mockHasher.Object,
+            mockUow.Object,
+            time);
+
+        // Act
+        var result = await handler.Handle(new LoginCommand("disabled_user", "any_pw"), CancellationToken.None);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("AUTH.ACCOUNT_DISABLED");
+    }
 }

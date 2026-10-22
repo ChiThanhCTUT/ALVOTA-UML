@@ -59,7 +59,10 @@ public record BookDto(
         book.CoverImagePath,
         book.Summary,
         book.IsReferenceOnly,
-        book.BookAuthors.Select(ba => ba.Author.FullName).ToList(),
+        book.BookAuthors
+            .Where(ba => ba.Author is not null && !string.IsNullOrWhiteSpace(ba.Author.FullName))
+            .Select(ba => ba.Author.FullName)
+            .ToList(),
         book.TotalCopies,
         book.AvailableCopies,
         book.Copies.Where(c => !c.IsDeleted).Select(BookCopyDto.From).ToList());

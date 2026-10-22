@@ -34,9 +34,9 @@ public sealed class PasswordHasher : IPasswordHasher
 
 public sealed class CurrentUserService : ICurrentUserService
 {
-    public string? UserId { get; private set; } = "Admin";
-    public string? Username { get; private set; } = "admin";
-    public string? Role { get; private set; } = "Admin";
+    public string? UserId { get; private set; }
+    public string? Username { get; private set; }
+    public string? Role { get; private set; }
     public bool IsAuthenticated => !string.IsNullOrEmpty(Username);
 
     public void SetUser(string userId, string username, string role)

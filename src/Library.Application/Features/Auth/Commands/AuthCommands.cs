@@ -46,6 +46,9 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<L
         if (user is null)
             return Result.Failure<LoginResultDto>(DomainErrors.Auth.InvalidCredentials);
 
+        if (!user.IsActive)
+            return Result.Failure<LoginResultDto>(DomainErrors.Auth.AccountDisabled);
+
         if (user.IsLockedOut(now))
             return Result.Failure<LoginResultDto>(DomainErrors.Auth.AccountLocked);
 

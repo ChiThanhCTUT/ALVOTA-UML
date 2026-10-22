@@ -84,7 +84,7 @@ public sealed class CreateBookCommandHandler : IRequestHandler<CreateBookCommand
             CreatedBy = "System"
         };
 
-        foreach (var authorId in request.AuthorIds)
+        foreach (var authorId in request.AuthorIds.Distinct())
         {
             book.BookAuthors.Add(new BookAuthor { BookId = book.Id, AuthorId = authorId });
         }
@@ -109,7 +109,8 @@ public sealed class CreateBookCommandHandler : IRequestHandler<CreateBookCommand
         await _books.AddAsync(book, ct);
         await _uow.SaveChangesAsync(ct);
 
-        return Result.Success(BookDto.From(book));
+        var savedBook = await _books.GetByIdAsync(book.Id, ct) ?? book;
+        return Result.Success(BookDto.From(savedBook));
     }
 }
 
@@ -170,7 +171,7 @@ public sealed class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand
         book.UpdatedAtUtc = now;
 
         book.BookAuthors.Clear();
-        foreach (var authorId in request.AuthorIds)
+        foreach (var authorId in request.AuthorIds.Distinct())
         {
             book.BookAuthors.Add(new BookAuthor { BookId = book.Id, AuthorId = authorId });
         }
@@ -178,7 +179,8 @@ public sealed class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand
         _books.Update(book);
         await _uow.SaveChangesAsync(ct);
 
-        return Result.Success(BookDto.From(book));
+        var savedBook = await _books.GetByIdAsync(book.Id, ct) ?? book;
+        return Result.Success(BookDto.From(savedBook));
     }
 }
 

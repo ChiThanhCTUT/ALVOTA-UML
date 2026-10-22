@@ -12,14 +12,14 @@ public partial class MainViewModel : ObservableObject
     private readonly IDialogService _dialog;
 
     [ObservableProperty] private object? _currentView;
-    [ObservableProperty] private string _currentUserName = "Quản trị viên";
-    [ObservableProperty] private string _currentUserRole = "Admin";
+    [ObservableProperty] private string _currentUserName = string.Empty;
+    [ObservableProperty] private string _currentUserRole = string.Empty;
     [ObservableProperty] private string _schoolName = "THƯ VIỆN TRƯỜNG HỌC";
     [ObservableProperty] private string _selectedMenu = "Dashboard";
 
     public bool CanAccessSystem => CurrentUserRole == "Admin";
     public bool CanAccessCatalogAndFines => CurrentUserRole != "Assistant";
-    public bool IsLoggedIn => CurrentView is not LoginViewModel;
+    public bool IsLoggedIn => _currentUser.IsAuthenticated && CurrentView is not LoginViewModel;
 
     partial void OnCurrentViewChanged(object? value)
     {
@@ -30,6 +30,7 @@ public partial class MainViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(CanAccessSystem));
         OnPropertyChanged(nameof(CanAccessCatalogAndFines));
+        OnPropertyChanged(nameof(IsLoggedIn));
     }
 
     // ViewModels
@@ -70,12 +71,17 @@ public partial class MainViewModel : ObservableObject
 
         _navigation.CurrentViewModelChanged += OnNavigationChanged;
 
-        CurrentUserName = _currentUser.Username ?? "Quản trị viên";
-        CurrentUserRole = _currentUser.Role ?? "Admin";
-
-        // Mặc định hiển thị Dashboard
-        CurrentView = DashboardVM;
-        _ = DashboardVM.LoadDataAsync();
+        if (_currentUser.IsAuthenticated)
+        {
+            CurrentUserName = _currentUser.Username ?? "Quản trị viên";
+            CurrentUserRole = _currentUser.Role ?? "Admin";
+            CurrentView = DashboardVM;
+            _ = DashboardVM.LoadDataAsync();
+        }
+        else
+        {
+            _navigation.NavigateTo<LoginViewModel>();
+        }
     }
 
     private void OnNavigationChanged()
@@ -99,7 +105,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void Navigate(string viewName)
     {
-        if (!IsLoggedIn) return;
+        if (!_currentUser.IsAuthenticated) return;
 
         SelectedMenu = viewName;
         switch (viewName)

@@ -6,6 +6,8 @@ public static class DomainErrors
     {
         public static readonly Error AccountLocked =
             new("AUTH.ACCOUNT_LOCKED", "Tài khoản đang bị tạm khóa. Vui lòng thử lại sau 5 phút.");
+        public static readonly Error AccountDisabled =
+            new("AUTH.ACCOUNT_DISABLED", "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.");
         public static readonly Error InvalidCredentials =
             new("AUTH.INVALID_CREDENTIALS", "Tên đăng nhập hoặc mật khẩu không chính xác.");
         public static readonly Error UserNotFound =

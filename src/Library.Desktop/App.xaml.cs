@@ -4,6 +4,7 @@ using Library.Desktop.Services;
 using Library.Desktop.ViewModels;
 using Library.Infrastructure;
 using Library.Infrastructure.Persistence;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -11,8 +12,41 @@ namespace Library.Desktop;
 
 public partial class App : System.Windows.Application
 {
-    private const string LogPath = @"C:\Users\SuBin\Downloads\QUAN_LY_THU_VIEN\app_log.txt";
+    private static readonly string LogPath = FindSolutionOrBaseFile("app_log.txt");
     private readonly IHost _host;
+
+    private static string FindSolutionOrBaseFile(string fileName)
+    {
+        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        var dir = new System.IO.DirectoryInfo(baseDir);
+        for (int i = 0; i < 6 && dir != null; i++)
+        {
+            var slnCandidate = System.IO.Path.Combine(dir.FullName, "Library.sln");
+            if (System.IO.File.Exists(slnCandidate))
+            {
+                return System.IO.Path.Combine(dir.FullName, fileName);
+            }
+            dir = dir.Parent;
+        }
+        return System.IO.Path.Combine(baseDir, fileName);
+    }
+
+    private static string FindDatabasePath()
+    {
+        var solutionDb = FindSolutionOrBaseFile("library.db");
+        if (System.IO.File.Exists(solutionDb))
+        {
+            return solutionDb;
+        }
+
+        var localDb = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "library.db");
+        if (System.IO.File.Exists(localDb))
+        {
+            return localDb;
+        }
+
+        return solutionDb;
+    }
 
     public App()
     {
@@ -33,13 +67,15 @@ public partial class App : System.Windows.Application
                 {
                     // Core Clean Architecture Layers
                     services.AddApplication();
-                    var workspaceDb = @"C:\Users\SuBin\Downloads\QUAN_LY_THU_VIEN\library.db";
-                    var dbPath = System.IO.File.Exists(workspaceDb)
-                        ? workspaceDb
-                        : System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "library.db");
+                    var dbPath = FindDatabasePath();
                     services.AddInfrastructure($"Data Source={dbPath}");
 
-                // Desktop Services
+                    // Scoped Mediator per request to isolate LibraryDbContext lifetime
+                    services.AddSingleton<IMediator, ScopedMediator>();
+                    services.AddSingleton<ISender>(sp => sp.GetRequiredService<IMediator>());
+                    services.AddSingleton<IPublisher>(sp => sp.GetRequiredService<IMediator>());
+
+                    // Desktop Services
                 services.AddSingleton<IDialogService, DialogService>();
                 services.AddSingleton<INavigationService, NavigationService>();
                 services.AddSingleton<IAudioService, AudioService>();
