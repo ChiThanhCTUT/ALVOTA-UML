@@ -163,6 +163,43 @@ public partial class SystemViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public async Task ResetPasswordAsync(UserDto? user, CancellationToken ct = default)
+    {
+        if (user == null) return;
+
+        var confirmed = await _dialog.ShowConfirmationAsync(
+            $"Đặt lại mật khẩu của tài khoản '{user.Username}' về mặc định 'Library@123' và mở khóa tài khoản?",
+            "Xác nhận đặt lại mật khẩu");
+        if (!confirmed) return;
+
+        IsBusy = true;
+        try
+        {
+            var result = await _mediator.Send(new ResetPasswordCommand(user.Id, "Library@123"), ct);
+            if (result.IsSuccess)
+            {
+                _audio.PlaySuccess();
+                await _dialog.ShowInfoAsync($"Đã đặt lại mật khẩu cho '{user.Username}' thành 'Library@123'!");
+                await LoadUsersAsync(ct);
+            }
+            else
+            {
+                _audio.PlayError();
+                await _dialog.ShowErrorAsync(result.Error.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            _audio.PlayError();
+            await _dialog.ShowErrorAsync("Lỗi đặt lại mật khẩu: " + ex.Message);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
     public async Task CreateBackupAsync(CancellationToken ct = default)
     {
         IsBusy = true;
@@ -184,6 +221,62 @@ public partial class SystemViewModel : ObservableObject
         catch (Exception ex)
         {
             await _dialog.ShowErrorAsync("Lỗi sao lưu: " + ex.Message);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task RestoreBackupAsync(CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(LastBackupPath) || !File.Exists(LastBackupPath))
+        {
+            var backupDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Backups");
+            if (Directory.Exists(backupDir))
+            {
+                var latest = new DirectoryInfo(backupDir)
+                    .GetFiles("library_backup_*.db")
+                    .OrderByDescending(f => f.CreationTimeUtc)
+                    .FirstOrDefault();
+                if (latest != null)
+                {
+                    LastBackupPath = latest.FullName;
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(LastBackupPath) || !File.Exists(LastBackupPath))
+        {
+            await _dialog.ShowWarningAsync("Chưa tìm thấy file sao lưu nào trong thư mục Backups.");
+            return;
+        }
+
+        var confirmed = await _dialog.ShowConfirmationAsync(
+            $"Bạn có chắc chắn muốn khôi phục CSDL từ bản sao lưu:\n{LastBackupPath}?",
+            "Xác nhận phục hồi dữ liệu");
+        if (!confirmed) return;
+
+        IsBusy = true;
+        try
+        {
+            var result = await _mediator.Send(new RestoreBackupCommand(LastBackupPath), ct);
+            if (result.IsSuccess)
+            {
+                _audio.PlaySuccess();
+                await _dialog.ShowInfoAsync("Khôi phục cơ sở dữ liệu thành công!");
+            }
+            else
+            {
+                _audio.PlayError();
+                await _dialog.ShowErrorAsync(result.Error.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            _audio.PlayError();
+            await _dialog.ShowErrorAsync("Lỗi khôi phục CSDL: " + ex.Message);
         }
         finally
         {

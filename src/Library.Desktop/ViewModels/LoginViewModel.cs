@@ -15,8 +15,8 @@ public partial class LoginViewModel : ObservableObject
     private readonly IAudioService _audio;
     private readonly CurrentUserService _currentUser;
 
-    [ObservableProperty] private string _username = "admin";
-    [ObservableProperty] private string _password = "Admin@123";
+    [ObservableProperty] private string _username = string.Empty;
+    [ObservableProperty] private string _password = string.Empty;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasError))]
     private string? _errorMessage;

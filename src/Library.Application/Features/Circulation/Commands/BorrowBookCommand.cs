@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentValidation;
 using Library.Application.Common.Interfaces;
 using Library.Application.Features.Circulation.DTOs;
@@ -30,6 +31,7 @@ public sealed class BorrowBookCommandHandler : IRequestHandler<BorrowBookCommand
     private readonly IReservationRepository _reservations;
     private readonly IUnitOfWork _uow;
     private readonly TimeProvider _time;
+    private readonly ISettingRepository? _settings;
 
     public BorrowBookCommandHandler(
         IMemberRepository members,
@@ -38,7 +40,8 @@ public sealed class BorrowBookCommandHandler : IRequestHandler<BorrowBookCommand
         IFineRepository fines,
         IReservationRepository reservations,
         IUnitOfWork uow,
-        TimeProvider time)
+        TimeProvider time,
+        ISettingRepository? settings = null)
     {
         _members = members;
         _copies = copies;
@@ -47,6 +50,7 @@ public sealed class BorrowBookCommandHandler : IRequestHandler<BorrowBookCommand
         _reservations = reservations;
         _uow = uow;
         _time = time;
+        _settings = settings;
     }
 
     public async Task<Result<LoanDto>> Handle(BorrowBookCommand request, CancellationToken ct)
@@ -59,18 +63,27 @@ public sealed class BorrowBookCommandHandler : IRequestHandler<BorrowBookCommand
         var copy = await _copies.GetByBarcodeAsync(request.CopyBarcode.Trim(), ct);
         if (copy is null) return Result.Failure<LoanDto>(DomainErrors.Catalog.CopyNotFound);
 
-        // Check if copy is reserved for someone else
+        // Check if copy is reserved for someone else (CIR-06, BR-10, BUG-005)
         if (copy.Status == CopyStatus.Reserved)
         {
             var activeRes = (await _reservations.GetActiveByMemberIdAsync(member.Id, ct))
-                .FirstOrDefault(r => r.BookId == copy.BookId && r.Status == ReservationStatus.Notified);
+                .FirstOrDefault(r => r.BookId == copy.BookId &&
+                                     r.Status == ReservationStatus.Notified &&
+                                     (r.ReservedCopyId == null || r.ReservedCopyId == copy.Id));
 
-            if (activeRes == null)
+            if (activeRes == null || activeRes.IsExpired(now))
             {
+                if (activeRes != null && activeRes.IsExpired(now))
+                {
+                    activeRes.Expire(now);
+                    _reservations.Update(activeRes);
+                }
+
                 return Result.Failure<LoanDto>(DomainErrors.Circulation.ReservationConflict);
             }
 
             activeRes.Fulfill(now);
+            copy.MarkAvailable();
             _reservations.Update(activeRes);
         }
 
@@ -78,13 +91,27 @@ public sealed class BorrowBookCommandHandler : IRequestHandler<BorrowBookCommand
         var hasOverdue = activeLoans.Any(i => i.DueDateUtc < now);
         var unpaidFines = (await _fines.GetUnpaidByMemberIdAsync(member.Id, ct))?.Sum(f => f.RemainingAmount) ?? 0m;
 
+        var studentLimit = await GetIntSettingAsync("StudentBorrowLimit", BusinessRuleConstants.StudentBorrowLimit, ct);
+        var teacherLimit = await GetIntSettingAsync("TeacherBorrowLimit", BusinessRuleConstants.TeacherBorrowLimit, ct);
+        var studentDays = await GetIntSettingAsync("StudentLoanDurationDays", BusinessRuleConstants.StudentLoanDurationDays, ct);
+        var teacherDays = await GetIntSettingAsync("TeacherLoanDurationDays", BusinessRuleConstants.TeacherLoanDurationDays, ct);
+        var debtThreshold = await GetDecimalSettingAsync("DebtThresholdToBlockBorrowing", BusinessRuleConstants.DebtThresholdToBlockBorrowing, ct);
+
         var canBorrowResult = CirculationPolicyService.CanBorrow(
-            member, copy, activeLoans.Count, hasOverdue, unpaidFines, now);
+            member,
+            copy,
+            activeLoans.Count,
+            hasOverdue,
+            unpaidFines,
+            now,
+            debtThreshold,
+            studentLimit,
+            teacherLimit);
 
         if (canBorrowResult.IsFailure)
             return Result.Failure<LoanDto>(canBorrowResult.Error);
 
-        var durationDays = member.GetLoanDurationDays();
+        var durationDays = member.GetLoanDurationDays(studentDays, teacherDays);
         var dueDate = now.AddDays(durationDays);
 
         var loan = new Loan
@@ -115,8 +142,34 @@ public sealed class BorrowBookCommandHandler : IRequestHandler<BorrowBookCommand
 
         await _loans.AddAsync(loan, ct);
         _copies.Update(copy);
-        await _uow.SaveChangesAsync(ct);
+
+        try
+        {
+            await _uow.SaveChangesAsync(ct);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.StartsWith("Concurrency failure", StringComparison.Ordinal))
+        {
+            return Result.Failure<LoanDto>(DomainErrors.Circulation.ConcurrencyConflict);
+        }
 
         return Result.Success(LoanDto.From(loan, now));
+    }
+
+    private async Task<int> GetIntSettingAsync(string key, int defaultValue, CancellationToken ct)
+    {
+        if (_settings is null) return defaultValue;
+        var raw = await _settings.GetValueOrDefaultAsync(key, defaultValue.ToString(CultureInfo.InvariantCulture), ct);
+        return int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed > 0
+            ? parsed
+            : defaultValue;
+    }
+
+    private async Task<decimal> GetDecimalSettingAsync(string key, decimal defaultValue, CancellationToken ct)
+    {
+        if (_settings is null) return defaultValue;
+        var raw = await _settings.GetValueOrDefaultAsync(key, defaultValue.ToString(CultureInfo.InvariantCulture), ct);
+        return decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed) && parsed >= 0m
+            ? parsed
+            : defaultValue;
     }
 }

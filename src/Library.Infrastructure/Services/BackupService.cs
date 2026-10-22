@@ -1,4 +1,5 @@
 using Library.Application.Common.Interfaces;
+using Microsoft.Data.Sqlite;
 
 namespace Library.Infrastructure.Services;
 
@@ -44,7 +45,11 @@ public sealed class BackupService : IBackupService
         if (!File.Exists(backupFilePath))
             throw new FileNotFoundException("File sao lưu không tồn tại.", backupFilePath);
 
-        await Task.Run(() => File.Copy(backupFilePath, _databaseFilePath, overwrite: true), ct);
+        await Task.Run(() =>
+        {
+            SqliteConnection.ClearAllPools();
+            File.Copy(backupFilePath, _databaseFilePath, overwrite: true);
+        }, ct);
     }
 
     public async Task<IReadOnlyList<FileInfo>> GetBackupListAsync(string targetDirectory, CancellationToken ct = default)

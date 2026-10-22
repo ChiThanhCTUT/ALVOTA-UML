@@ -32,7 +32,11 @@
                                              Height="40"
                                              FontSize="15"
                                              FontWeight="SemiBold"
-                                             VerticalContentAlignment="Center"/>
+                                             VerticalContentAlignment="Center">
+                                        <TextBox.InputBindings>
+                                            <KeyBinding Key="Return" Command="{Binding SearchMemberCommand}"/>
+                                        </TextBox.InputBindings>
+                                    </TextBox>
                                     <Button Grid.Column="1" Content="Tìm kiếm"
                                             Command="{Binding SearchMemberCommand}"
                                             Style="{StaticResource PrimaryButton}"
@@ -62,7 +66,11 @@
                                          Height="42"
                                          FontSize="16"
                                          FontWeight="Bold"
-                                         Margin="0,0,0,14"/>
+                                         Margin="0,0,0,14">
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Return" Command="{Binding ConfirmBorrowCommand}"/>
+                                    </TextBox.InputBindings>
+                                </TextBox>
 
                                 <Button Content="XÁC NHẬN MƯỢN SÁCH"
                                         Command="{Binding ConfirmBorrowCommand}"
@@ -74,11 +82,21 @@
 
                                 <!-- Message Box -->
                                 <TextBlock Text="{Binding BorrowMessage}"
-                                           Foreground="{StaticResource PrimaryDarkBrush}"
                                            FontSize="13"
                                            FontWeight="SemiBold"
                                            TextWrapping="Wrap"
-                                           Margin="0,6,0,0"/>
+                                           Margin="0,6,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding BorrowHasError}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -127,7 +145,11 @@
                             <TextBox Text="{Binding ReturnBarcodeInput, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource ModernTextBox}"
                                      Height="42" FontSize="16" FontWeight="Bold"
-                                     Margin="0,0,0,14"/>
+                                     Margin="0,0,0,14">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Return" Command="{Binding ConfirmReturnCommand}"/>
+                                </TextBox.InputBindings>
+                            </TextBox>
 
                             <TextBlock Text="Tình trạng sách khi trả:" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
                             <ComboBox SelectedValue="{Binding SelectedCondition}"
@@ -153,8 +175,18 @@
 
                             <TextBlock Text="{Binding ReturnMessage}"
                                        FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                       TextWrapping="Wrap" Margin="0,8,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ReturnHasError}" Value="True">
+                                                <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
                     </Border>
 
@@ -184,21 +216,12 @@
 
                         <DataGrid ItemsSource="{Binding OverdueLoans}" Style="{StaticResource ModernDataGrid}">
                             <DataGrid.Columns>
+                                <DataGridTextColumn Header="Bạn đọc" Binding="{Binding MemberName}" Width="160" FontWeight="SemiBold"/>
+                                <DataGridTextColumn Header="Mã thẻ" Binding="{Binding CardNumber}" Width="110"/>
                                 <DataGridTextColumn Header="Mã vạch" Binding="{Binding CopyBarcode}" Width="120"/>
                                 <DataGridTextColumn Header="Tên sách" Binding="{Binding BookTitle}" Width="*"/>
                                 <DataGridTextColumn Header="Hạn trả" Binding="{Binding DueDateUtc, StringFormat='dd/MM/yyyy'}" Width="110"/>
-                                <DataGridTextColumn Header="Trạng thái" Binding="{Binding StatusText}" Width="140"/>
-                                <DataGridTemplateColumn Header="Thao tác" Width="100">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Button Content="Gia hạn"
-                                                    Command="{Binding DataContext.RenewLoanCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                    CommandParameter="{Binding}"
-                                                    Style="{StaticResource OutlinedButton}"
-                                                    Padding="8,2" FontSize="12"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Trạng thái" Binding="{Binding StatusText}" Width="150" Foreground="{StaticResource DangerBrush}" FontWeight="Bold"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </DockPanel>

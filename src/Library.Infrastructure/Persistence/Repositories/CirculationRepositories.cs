@@ -30,19 +30,35 @@ public sealed class MemberRepository : IMemberRepository
 
     public async Task<PagedResult<Member>> GetPagedAsync(PagedRequest request, MemberType? type = null, CardStatus? status = null, CancellationToken ct = default)
     {
-        var query = _context.Members.AsNoTracking().AsQueryable();
+        var query = _context.Members
+            .AsNoTracking()
+            .Include(m => m.Loans).ThenInclude(l => l.Items)
+            .Include(m => m.Fines).ThenInclude(f => f.Payments)
+            .AsQueryable();
 
         if (type.HasValue) query = query.Where(m => m.Type == type.Value);
         if (status.HasValue) query = query.Where(m => m.CardStatus == status.Value);
 
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
-            var term = request.SearchTerm.Trim().ToLower();
-            query = query.Where(m =>
-                m.FullName.ToLower().Contains(term) ||
-                m.CardNumber.ToLower().Contains(term) ||
-                m.ClassOrDepartment.ToLower().Contains(term) ||
-                (m.PhoneNumber != null && m.PhoneNumber.Contains(term)));
+            var term = request.SearchTerm.Trim();
+            var allCandidates = await query
+                .OrderByDescending(m => m.CreatedAtUtc)
+                .ToListAsync(ct);
+
+            var filtered = allCandidates.Where(m =>
+                m.FullName.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
+                m.CardNumber.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
+                m.ClassOrDepartment.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
+                (m.PhoneNumber != null && m.PhoneNumber.Contains(term, StringComparison.CurrentCultureIgnoreCase)))
+                .ToList();
+
+            var pagedItems = filtered
+                .Skip((request.PageIndex - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToList();
+
+            return new PagedResult<Member>(pagedItems, filtered.Count, request.PageIndex, request.PageSize);
         }
 
         var total = await query.CountAsync(ct);
@@ -92,6 +108,7 @@ public sealed class LoanRepository : ILoanRepository
     {
         return await _context.LoanItems
             .Include(i => i.Loan).ThenInclude(l => l!.Member)
+            .Include(i => i.Loan).ThenInclude(l => l!.Items)
             .Include(i => i.BookCopy).ThenInclude(c => c!.Book)
             .FirstOrDefaultAsync(i => i.BookCopy!.Barcode == barcode && i.ReturnedAtUtc == null, ct);
     }
@@ -101,6 +118,16 @@ public sealed class LoanRepository : ILoanRepository
         return await _context.LoanItems
             .Include(i => i.BookCopy).ThenInclude(c => c!.Book)
             .Where(i => i.Loan!.MemberId == memberId && i.ReturnedAtUtc == null)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<LoanItem>> GetLoanHistoryByMemberIdAsync(Guid memberId, CancellationToken ct = default)
+    {
+        return await _context.LoanItems
+            .AsNoTracking()
+            .Include(i => i.BookCopy).ThenInclude(c => c!.Book)
+            .Where(i => i.Loan!.MemberId == memberId)
+            .OrderByDescending(i => i.CreatedAtUtc)
             .ToListAsync(ct);
     }
 

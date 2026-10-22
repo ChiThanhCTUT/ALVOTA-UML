@@ -21,6 +21,7 @@ public sealed class User : AuditableEntity
     public bool IsActive { get; set; } = true;
     public int FailedLoginAttempts { get; set; }
     public DateTime? LockoutEndUtc { get; set; }
+    public DateTime? LastLoginAtUtc { get; set; }
 
     public bool IsLockedOut(DateTime utcNow)
     {
@@ -41,6 +42,7 @@ public sealed class User : AuditableEntity
     {
         FailedLoginAttempts = 0;
         LockoutEndUtc = null;
+        LastLoginAtUtc = utcNow;
         UpdatedAtUtc = utcNow;
     }
 

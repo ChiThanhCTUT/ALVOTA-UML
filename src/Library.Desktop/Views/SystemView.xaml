@@ -63,7 +63,7 @@
                             <TextBox Text="{Binding NewUsername, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Height="36" Margin="0,0,0,10"/>
 
                             <TextBlock Text="Mật khẩu khởi tạo (*)" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <TextBox Text="{Binding NewPassword, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Height="36" Margin="0,0,0,10"/>
+                            <PasswordBox x:Name="NewPasswordInput" Style="{StaticResource ModernPasswordBox}" PasswordChanged="OnNewPasswordChanged" Height="36" Margin="0,0,0,10"/>
 
                             <TextBlock Text="Họ và tên cán bộ (*)" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,4"/>
                             <TextBox Text="{Binding NewFullName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Height="36" Margin="0,0,0,10"/>
@@ -89,7 +89,18 @@
                                     <DataGridTextColumn Header="Họ và tên" Binding="{Binding FullName}" Width="*"/>
                                     <DataGridTextColumn Header="Vai trò" Binding="{Binding Role}" Width="120"/>
                                     <DataGridCheckBoxColumn Header="Hoạt động" Binding="{Binding IsActive}" Width="90"/>
-                                    <DataGridTextColumn Header="Lần đăng nhập cuối" Binding="{Binding LastLoginAtUtc, StringFormat='dd/MM/yyyy HH:mm'}" Width="150"/>
+                                    <DataGridTextColumn Header="Lần đăng nhập cuối" Binding="{Binding LastLoginAtUtc, StringFormat='dd/MM/yyyy HH:mm'}" Width="140"/>
+                                    <DataGridTemplateColumn Header="Thao tác" Width="130">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button Content="Đặt lại MK"
+                                                        Command="{Binding DataContext.ResetPasswordCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        Style="{StaticResource OutlinedButton}"
+                                                        Padding="8,2" FontSize="12"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </DockPanel>
@@ -104,7 +115,8 @@
                         <TextBlock Text="Sao lưu và phục hồi cơ sở dữ liệu SQLite (SYS-02)" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,10"/>
                         <TextBlock Text="Hệ thống tự động sao lưu định kỳ. Bạn cũng có thể thực hiện sao lưu thủ công bất kỳ lúc nào để phòng ngừa rủi ro mất điện hoặc hỏng ổ cứng." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,20"/>
 
-                        <Button Content="💾 THỰC HIỆN SAO LƯU CSDL NGAY" Command="{Binding CreateBackupCommand}" Style="{StaticResource SuccessButton}" Height="46" FontSize="15" Margin="0,0,0,20"/>
+                        <Button Content="💾 THỰC HIỆN SAO LƯU CSDL NGAY" Command="{Binding CreateBackupCommand}" Style="{StaticResource SuccessButton}" Height="46" FontSize="15" Margin="0,0,0,12"/>
+                        <Button Content="🔄 KHÔI PHỤC TỪ BẢN SAO LƯU GẦN NHẤT" Command="{Binding RestoreBackupCommand}" Style="{StaticResource OutlinedButton}" Height="40" FontSize="14" Margin="0,0,0,20"/>
 
                         <Border Background="{StaticResource SurfaceAltBrush}" CornerRadius="6" Padding="14">
                             <StackPanel>

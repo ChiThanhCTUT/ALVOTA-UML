@@ -237,4 +237,40 @@ public partial class CatalogViewModel : ObservableObject
             IsBusy = false;
         }
     }
+
+    [RelayCommand]
+    public async Task DeleteBookAsync(BookDto? book, CancellationToken ct = default)
+    {
+        if (book == null) return;
+
+        var confirmed = await _dialog.ShowConfirmationAsync($"Bạn có chắc chắn muốn xóa đầu sách '{book.Title}'?", "Xác nhận xóa sách");
+        if (!confirmed) return;
+
+        IsBusy = true;
+        try
+        {
+            var result = await _mediator.Send(new DeleteBookCommand(book.Id), ct);
+            if (result.IsSuccess)
+            {
+                _audio.PlaySuccess();
+                await _dialog.ShowInfoAsync($"Đã xóa đầu sách '{book.Title}' thành công!");
+                IsBusy = false;
+                await LoadBooksAsync(ct);
+            }
+            else
+            {
+                _audio.PlayError();
+                await _dialog.ShowErrorAsync(result.Error.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            _audio.PlayError();
+            await _dialog.ShowErrorAsync("Lỗi xóa sách: " + ex.Message);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
 }

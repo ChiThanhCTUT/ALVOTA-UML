@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentValidation;
 using Library.Application.Common.Interfaces;
 using Library.Application.Features.Circulation.DTOs;
@@ -32,6 +33,7 @@ public sealed class ReturnBookCommandHandler : IRequestHandler<ReturnBookCommand
     private readonly IReservationRepository _reservations;
     private readonly IUnitOfWork _uow;
     private readonly TimeProvider _time;
+    private readonly ISettingRepository? _settings;
 
     public ReturnBookCommandHandler(
         ILoanRepository loans,
@@ -39,7 +41,8 @@ public sealed class ReturnBookCommandHandler : IRequestHandler<ReturnBookCommand
         IFineRepository fines,
         IReservationRepository reservations,
         IUnitOfWork uow,
-        TimeProvider time)
+        TimeProvider time,
+        ISettingRepository? settings = null)
     {
         _loans = loans;
         _copies = copies;
@@ -47,6 +50,7 @@ public sealed class ReturnBookCommandHandler : IRequestHandler<ReturnBookCommand
         _reservations = reservations;
         _uow = uow;
         _time = time;
+        _settings = settings;
     }
 
     public async Task<Result<ReturnResultDto>> Handle(ReturnBookCommand request, CancellationToken ct)
@@ -66,16 +70,28 @@ public sealed class ReturnBookCommandHandler : IRequestHandler<ReturnBookCommand
 
         loanItem.MarkReturned(now, request.Condition);
 
+        // BUG-011: Cập nhật trạng thái phiếu mượn sang Returned nếu tất cả bản sao trong phiếu đã trả
+        if (loanItem.Loan != null &&
+            (loanItem.Loan.Items.Count == 0 || loanItem.Loan.Items.All(i => i.IsDeleted || i.IsReturned)))
+        {
+            loanItem.Loan.Status = LoanStatus.Returned;
+            loanItem.Loan.UpdatedAtUtc = now;
+            _loans.Update(loanItem.Loan);
+        }
+
         var coverPrice = copy.Book?.Price ?? 0m;
         var totalFine = 0m;
         FineReason? primaryReason = null;
         var fineDescription = string.Empty;
 
+        var dailyLateFineRate = await GetDecimalSettingAsync("DailyLateFineRate", BusinessRuleConstants.DailyLateFineRate, ct);
+        var holdDays = await GetIntSettingAsync("ReservationHoldDays", BusinessRuleConstants.ReservationHoldDays, ct);
+
         // Overdue check (BR-05, BR-06)
         var overdueDays = (now > loanItem.DueDateUtc) ? (int)Math.Ceiling((now - loanItem.DueDateUtc).TotalDays) : 0;
         if (overdueDays > 0)
         {
-            var overdueFine = FineCalculator.CalculateOverdueFine(loanItem.DueDateUtc, now, coverPrice);
+            var overdueFine = FineCalculator.CalculateOverdueFine(loanItem.DueDateUtc, now, coverPrice, dailyLateFineRate);
             totalFine += overdueFine;
             primaryReason = FineReason.Overdue;
             fineDescription = $"Quá hạn {overdueDays} ngày ({overdueFine:N0} đ)";
@@ -132,7 +148,7 @@ public sealed class ReturnBookCommandHandler : IRequestHandler<ReturnBookCommand
             var pendingRes = await _reservations.GetOldestPendingReservationForBookAsync(copy.BookId, ct);
             if (pendingRes != null)
             {
-                pendingRes.NotifyAvailable(copy, now);
+                pendingRes.NotifyAvailable(copy, now, holdDays);
                 copy.MarkReserved();
                 _reservations.Update(pendingRes);
                 hasReservationNotified = true;
@@ -141,7 +157,15 @@ public sealed class ReturnBookCommandHandler : IRequestHandler<ReturnBookCommand
 
         _loans.UpdateItem(loanItem);
         _copies.Update(copy);
-        await _uow.SaveChangesAsync(ct);
+
+        try
+        {
+            await _uow.SaveChangesAsync(ct);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.StartsWith("Concurrency failure", StringComparison.Ordinal))
+        {
+            return Result.Failure<ReturnResultDto>(DomainErrors.Circulation.ConcurrencyConflict);
+        }
 
         return Result.Success(new ReturnResultDto(
             loanItem.Id,
@@ -153,5 +177,23 @@ public sealed class ReturnBookCommandHandler : IRequestHandler<ReturnBookCommand
             totalFine,
             createdFineId,
             hasReservationNotified));
+    }
+
+    private async Task<int> GetIntSettingAsync(string key, int defaultValue, CancellationToken ct)
+    {
+        if (_settings is null) return defaultValue;
+        var raw = await _settings.GetValueOrDefaultAsync(key, defaultValue.ToString(CultureInfo.InvariantCulture), ct);
+        return int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed > 0
+            ? parsed
+            : defaultValue;
+    }
+
+    private async Task<decimal> GetDecimalSettingAsync(string key, decimal defaultValue, CancellationToken ct)
+    {
+        if (_settings is null) return defaultValue;
+        var raw = await _settings.GetValueOrDefaultAsync(key, defaultValue.ToString(CultureInfo.InvariantCulture), ct);
+        return decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed) && parsed >= 0m
+            ? parsed
+            : defaultValue;
     }
 }

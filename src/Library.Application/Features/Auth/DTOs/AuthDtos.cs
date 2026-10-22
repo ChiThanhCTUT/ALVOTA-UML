@@ -10,7 +10,8 @@ public record UserDto(
     string? Email,
     string Role,
     bool IsActive,
-    DateTime? LockoutEndUtc)
+    DateTime? LockoutEndUtc,
+    DateTime? LastLoginAtUtc = null)
 {
     public static UserDto From(User user) => new(
         user.Id,
@@ -19,7 +20,8 @@ public record UserDto(
         user.Email,
         user.Role?.Name ?? "Assistant",
         user.IsActive,
-        user.LockoutEndUtc);
+        user.LockoutEndUtc,
+        user.LastLoginAtUtc);
 }
 
 public record LoginResultDto(

@@ -13,7 +13,7 @@ public sealed class BookConfiguration : IEntityTypeConfiguration<Book>
         builder.Property(x => x.Title).IsRequired().HasMaxLength(300);
         builder.Property(x => x.Subtitle).HasMaxLength(300);
         builder.Property(x => x.Isbn).HasMaxLength(30);
-        builder.HasIndex(x => x.Isbn).IsUnique().HasFilter("[Isbn] IS NOT NULL");
+        builder.HasIndex(x => x.Isbn).IsUnique().HasFilter("[Isbn] IS NOT NULL AND [IsDeleted] = 0");
         builder.Property(x => x.Language).IsRequired().HasMaxLength(50);
         builder.Property(x => x.Price).HasPrecision(18, 2);
         builder.Property(x => x.RowVersion).IsConcurrencyToken();
@@ -38,7 +38,7 @@ public sealed class BookCopyConfiguration : IEntityTypeConfiguration<BookCopy>
         builder.ToTable("BookCopies");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Barcode).IsRequired().HasMaxLength(50);
-        builder.HasIndex(x => x.Barcode).IsUnique(); // CAT: Mã vạch duy nhất
+        builder.HasIndex(x => x.Barcode).IsUnique().HasFilter("[IsDeleted] = 0"); // CAT: Mã vạch duy nhất (loại trừ đã xóa mềm)
         builder.Property(x => x.ShelfLocation).IsRequired().HasMaxLength(100);
         builder.Property(x => x.RowVersion).IsConcurrencyToken();
         builder.HasQueryFilter(x => !x.IsDeleted);

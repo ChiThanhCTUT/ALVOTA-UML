@@ -15,7 +15,9 @@ public record LoanItemDto(
     int RenewalCount,
     ReturnCondition? ReturnCondition,
     bool IsOverdue,
-    int OverdueDays)
+    int OverdueDays,
+    string MemberName = "",
+    string CardNumber = "")
 {
     public string CopyBarcode => Barcode;
     public string StatusText => ReturnedAtUtc.HasValue
@@ -39,7 +41,9 @@ public record LoanItemDto(
             item.RenewalCount,
             item.ReturnCondition,
             isOverdue,
-            overdueDays);
+            overdueDays,
+            item.Loan?.Member?.FullName ?? string.Empty,
+            item.Loan?.Member?.CardNumber ?? string.Empty);
     }
 }
 

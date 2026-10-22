@@ -1,75 +1,39 @@
-# T4.1 — Bộ Mã Nguồn C# Mẫu Chuẩn Test Case
+# Hệ thống Quản lý Thư viện Trường học (Desktop .NET 8 / WPF)
 
-## Mục đích
-Bộ file `.cs` này dùng làm **đầu vào thử nghiệm** cho công cụ dịch ngược C# → UML Class Diagram mà nhóm đang xây dựng.
+Hệ thống phần mềm quản lý thư viện trường học (THCS / THPT) hoạt động độc lập trên nền tảng Windows Desktop (`.NET 8`, `WPF`, `SQLite`), được thiết kế theo kiến trúc **Clean Architecture + DDD-Lite + CQRS (MediatR)**.
 
----
+## 1. Kiến trúc hệ thống
 
-## Danh sách file test case
+- **`src/Library.Domain`**: Thực thể nghiệp vụ (`Book`, `BookCopy`, `Member`, `Loan`, `LoanItem`, `Reservation`, `Fine`, `Payment`, `InventorySession`, `User`, `Role`, `AuditLog`, `Setting`), `Result<T>` pattern và dịch vụ miền (`CirculationPolicyService`, `FineCalculator`).
+- **`src/Library.Application`**: Xử lý các ca sử dụng (Use Cases) theo mô hình CQRS (`MediatR`), kiểm tra dữ liệu đầu vào tự động qua `ValidationBehavior` (`FluentValidation`), phân quyền RBAC và ghi nhận nhật ký kiểm toán (`AuditLog`).
+- **`src/Library.Infrastructure`**: Tầng lưu trữ dữ liệu `EF Core 8 + SQLite`, cấu hình Schema/Filtered Unique Index, khởi tạo dữ liệu mẫu (`DatabaseInitializer`), băm mật khẩu `PBKDF2-SHA256`, sinh mã vạch `ZXing.Net`, nhập/xuất Excel (`ClosedXML`), xuất báo cáo/biên lai PDF (`QuestPDF`) và sao lưu dữ liệu (`BackupService`).
+- **`src/Library.Desktop`**: Ứng dụng giao diện người dùng `WPF` theo mẫu `MVVM` (`CommunityToolkit.Mvvm`), sử dụng `ScopedMediator` để cô lập vòng đời `LibraryDbContext` cho từng thao tác.
 
-| File | Kịch bản | Kiểm tra khả năng nhận diện |
-|---|---|---|
-| `01_SimpleClass.cs` | Lớp đơn | Class, Fields, Properties, Methods, Access Modifiers |
-| `02_MultiLevelInheritance.cs` | Kế thừa đa cấp (3 cấp) | Chuỗi kế thừa A→B→C, `virtual`/`override` |
-| `03_Interface.cs` | Interface | Interface, class cài đặt 1 & 2 interface, quan hệ realizes |
-| `04_GenericCollection.cs` | Generic List & Dictionary | Thuộc tính kiểu `List<T>`, `Dictionary<K,V>` |
-| `05_NestedClass.cs` | Nested Class | Class lồng trong class (cấp 1 & cấp 2), access modifier |
+## 2. Chức năng chính
 
----
+1. **Xác thực & Phân quyền (`AUTH-01` → `AUTH-05`)**: Đăng nhập bảo mật với `PBKDF2`, tự động khóa 5 phút khi nhập sai 5 lần liên tiếp, phân quyền 3 vai trò (`Admin`, `Librarian`, `Assistant`).
+2. **Quản lý Danh mục Sách (`CAT-01` → `CAT-08`)**: Quản lý đầu sách, tác giả, thể loại, nhà xuất bản, bản sao (`BookCopy`), sinh mã vạch không trùng lặp và tìm kiếm tiếng Việt có dấu.
+3. **Quản lý Bạn đọc (`MEM-01` → `MEM-07`)**: Quản lý thẻ học sinh/giáo viên, tra cứu lịch sử mượn trả và nợ phạt.
+4. **Lưu thông Mượn – Trả – Đặt trước (`CIR-01` → `CIR-07`)**: Kiểm tra hạn mức mượn, thời hạn mượn, sách tham khảo đọc tại chỗ (`BR-11`), tự động giữ sách đặt trước 3 ngày khi trả (`BR-10`), gia hạn sách trực tuyến.
+5. **Quản lý Phạt & Thanh toán (`FIN-01` → `FIN-05`)**: Tự động tính phạt trễ hạn / hư hỏng / mất sách có áp trần giá bìa, thu phạt một phần hoặc toàn phần, miễn giảm tiền phạt có lưu lý do kiểm toán.
+6. **Kiểm kê Kho (`INV-01` → `INV-03`)**: Tạo phiên kiểm kê theo kệ, quét mã vạch đối soát và tổng hợp số lượng sách thực tế / mất / hỏng.
+7. **Thống kê, Cấu hình & Sao lưu (`RPT`, `SYS`)**: Bảng điều khiển tổng quan thời gian thực, cấu hình tham số nghiệp vụ động (`Settings`), sao lưu SQLite và nhật ký kiểm toán (`AuditLog`).
 
-## Cách sử dụng
-1. Copy toàn bộ file `.cs` vào thư mục test của công cụ.
-2. Chạy công cụ trên từng file.
-3. So sánh sơ đồ UML sinh ra với **kết quả mong đợi** bên dưới.
+## 3. Hướng dẫn chạy và kiểm thử
 
----
+```powershell
+# Biên dịch toàn bộ Solution
+dotnet build Library.sln
 
-## Kết quả mong đợi (Expected UML)
+# Chạy toàn bộ Unit Test & Integration Test
+dotnet test Library.sln
 
-### 01_SimpleClass.cs
-```
-┌─────────────────────────┐
-│        NhanVien         │
-├─────────────────────────┤
-│ - hoTen: string         │
-│ - tuoi: int             │
-│ - luongCoBan: double    │
-├─────────────────────────┤
-│ + HoTen: string         │
-│ + Tuoi: int             │
-│ + LuongCoBan: double    │
-│ + NhanVien(string,int,double)│
-│ + TinhLuong(): double   │
-│ + TinhLuongThucTe(double): double│
-│ + HienThiThongTin(): void│
-│ # CapNhatLuong(double): void│
-└─────────────────────────┘
+# Chạy ứng dụng Desktop
+dotnet run --project src/Library.Desktop/Library.Desktop.csproj
 ```
 
-### 02_MultiLevelInheritance.cs
-```
-DongVat ◄──| Cho ◄──| ChoCon
-(virtual An, Keu)    (override Keu)    (override Keu, HuanLuyen)
-```
+## 4. Tài liệu Kiểm toán & Kiểm thử
 
-### 03_Interface.cs
-```
-IHinhHoc ◄··· HinhTron
-IHinhHoc ◄··· HinhChuNhat
-IToMau   ◄··· HinhChuNhat
-```
-
-### 04_GenericCollection.cs
-```
-QuanLySach ──> List<string>
-QuanLySach ──> Dictionary<int,string>
-QuanLySach ──> List<TacGia>
-```
-
-### 05_NestedClass.cs
-```
-CongTy
-  └── PhongBan (nested)
-        └── NhanVienPhongBan (nested cấp 2)
-  └── ThuKy (nested private)
-```
+- [Báo cáo Kiểm toán Hệ thống (`SYSTEM_AUDIT_REPORT.md`)](./SYSTEM_AUDIT_REPORT.md)
+- [Danh sách Ca Kiểm thử (`TEST_CASES.md`)](./TEST_CASES.md)
+- [Kế hoạch Khắc phục Lỗi (`FIX_PLAN.md`)](./FIX_PLAN.md)

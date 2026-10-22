@@ -30,21 +30,27 @@ public sealed class PayFineCommandHandler : IRequestHandler<PayFineCommand, Resu
     private readonly ICurrentUserService _currentUser;
     private readonly IUnitOfWork _uow;
     private readonly TimeProvider _time;
+    private readonly IAuditLogRepository? _auditLogs;
 
     public PayFineCommandHandler(
         IFineRepository fines,
         ICurrentUserService currentUser,
         IUnitOfWork uow,
-        TimeProvider time)
+        TimeProvider time,
+        IAuditLogRepository? auditLogs = null)
     {
         _fines = fines;
         _currentUser = currentUser;
         _uow = uow;
         _time = time;
+        _auditLogs = auditLogs;
     }
 
     public async Task<Result<FinePaymentDto>> Handle(PayFineCommand request, CancellationToken ct)
     {
+        if (_currentUser.IsAuthenticated && _currentUser.Role != "Admin" && _currentUser.Role != "Librarian")
+            return Result.Failure<FinePaymentDto>(DomainErrors.Auth.Unauthorized);
+
         var now = _time.GetUtcNow().UtcDateTime;
         var fine = await _fines.GetByIdAsync(request.FineId, ct);
         if (fine is null) return Result.Failure<FinePaymentDto>(DomainErrors.Fine.NotFound);
@@ -52,14 +58,28 @@ public sealed class PayFineCommandHandler : IRequestHandler<PayFineCommand, Resu
         if (fine.Status == FineStatus.Paid || fine.Status == FineStatus.Waived)
             return Result.Failure<FinePaymentDto>(DomainErrors.Fine.AlreadyPaid);
 
-        if (request.Amount > fine.RemainingAmount)
+        if (request.Amount <= 0m || request.Amount > fine.RemainingAmount)
             return Result.Failure<FinePaymentDto>(DomainErrors.Fine.InvalidPaymentAmount);
 
         var receivedBy = _currentUser.Username ?? "Cashier";
-        var receiptNumber = $"BL-{now:yyyyMMddHHmmss}-{new Random().Next(100, 999)}";
+        var receiptNumber = $"BL-{now:yyyyMMddHHmmss}-{Random.Shared.Next(100, 999)}";
 
         var payment = fine.AddPayment(request.Amount, receivedBy, receiptNumber, now, request.Notes);
         await _fines.AddPaymentAsync(payment, ct);
+
+        if (_auditLogs is not null)
+        {
+            await _auditLogs.AddAsync(new AuditLog
+            {
+                UserId = Guid.TryParse(_currentUser.UserId, out var uid) ? uid : null,
+                Username = receivedBy,
+                Action = "PayFine",
+                EntityName = nameof(Fine),
+                EntityId = fine.Id.ToString(),
+                Details = $"Thu tiền phạt {request.Amount:N0} đ (Biên lai: {receiptNumber})",
+                TimestampUtc = now
+            }, ct);
+        }
 
         _fines.Update(fine);
         await _uow.SaveChangesAsync(ct);

@@ -255,4 +255,31 @@ public class BusinessRulesTests
         book.UpdatedBy.Should().Be("admin");
         book.UpdatedAtUtc.Should().Be(FixedNow);
     }
+
+    [Fact]
+    public void AddPayment_PartialPaymentThenRemainingPayment_UpdatesStatusAndUnpaidTotalCorrectly() // BUG-006
+    {
+        // Arrange
+        var fine = new Fine { Amount = 10000m, Status = FineStatus.Pending };
+        var member = new Member();
+        member.Fines.Add(fine);
+
+        // Act 1: Pay 5,000 VND (50%)
+        fine.AddPayment(5000m, "librarian", "BL-001", FixedNow);
+
+        // Assert 1: Still Pending, RemainingAmount = 5,000 VND
+        fine.PaidAmount.Should().Be(5000m);
+        fine.RemainingAmount.Should().Be(5000m);
+        fine.Status.Should().Be(FineStatus.Pending);
+        member.GetUnpaidFineTotal().Should().Be(5000m);
+
+        // Act 2: Pay remaining 5,000 VND
+        fine.AddPayment(5000m, "librarian", "BL-002", FixedNow);
+
+        // Assert 2: Now Paid, RemainingAmount = 0 VND
+        fine.PaidAmount.Should().Be(10000m);
+        fine.RemainingAmount.Should().Be(0m);
+        fine.Status.Should().Be(FineStatus.Paid);
+        member.GetUnpaidFineTotal().Should().Be(0m);
+    }
 }

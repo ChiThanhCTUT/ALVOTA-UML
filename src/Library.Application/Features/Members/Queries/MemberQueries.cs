@@ -35,8 +35,12 @@ public sealed class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Re
         var dtoList = new List<MemberDto>();
         foreach (var m in pagedMembers.Items)
         {
-            var activeLoans = (await _loans.GetActiveLoanItemsByMemberIdAsync(m.Id, ct)).Count;
-            var unpaidFines = (await _fines.GetUnpaidByMemberIdAsync(m.Id, ct)).Sum(f => f.RemainingAmount);
+            var activeLoans = m.Loans.Count > 0
+                ? m.GetActiveLoanCount()
+                : (await _loans.GetActiveLoanItemsByMemberIdAsync(m.Id, ct)).Count;
+            var unpaidFines = m.Fines.Count > 0
+                ? m.GetUnpaidFineTotal()
+                : (await _fines.GetUnpaidByMemberIdAsync(m.Id, ct)).Sum(f => f.RemainingAmount);
             dtoList.Add(MemberDto.From(m, activeLoans, unpaidFines));
         }
 
@@ -141,11 +145,16 @@ public sealed class GetMemberDetailHistoryQueryHandler : IRequestHandler<GetMemb
         var activeLoans = (await _loans.GetActiveLoanItemsByMemberIdAsync(member.Id, ct))
             .Select(i => LoanItemDto.From(i, now)).ToList();
 
+        var historyItems = await _loans.GetLoanHistoryByMemberIdAsync(member.Id, ct);
+        var borrowHistory = historyItems is not null
+            ? historyItems.Select(i => LoanItemDto.From(i, now)).ToList()
+            : activeLoans;
+
         var fines = (await _fines.GetUnpaidByMemberIdAsync(member.Id, ct))
             .Select(FineDto.From).ToList();
 
         var memberDto = MemberDto.From(member, activeLoans.Count, fines.Sum(f => f.RemainingAmount));
 
-        return Result.Success(new MemberDetailHistoryDto(memberDto, activeLoans, activeLoans, fines));
+        return Result.Success(new MemberDetailHistoryDto(memberDto, activeLoans, borrowHistory, fines));
     }
 }

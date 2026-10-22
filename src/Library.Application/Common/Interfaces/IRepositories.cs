@@ -19,6 +19,7 @@ public interface IBookCopyRepository
     Task<BookCopy?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<BookCopy?> GetByBarcodeAsync(string barcode, CancellationToken ct = default);
     Task<IReadOnlyList<BookCopy>> GetByBookIdAsync(Guid bookId, CancellationToken ct = default);
+    Task<IReadOnlyList<BookCopy>> GetForInventoryAsync(string? shelfLocation = null, CancellationToken ct = default);
     Task AddAsync(BookCopy copy, CancellationToken ct = default);
     Task AddRangeAsync(IEnumerable<BookCopy> copies, CancellationToken ct = default);
     void Update(BookCopy copy);
@@ -41,6 +42,7 @@ public interface ILoanRepository
     Task<Loan?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<LoanItem?> GetActiveLoanItemByCopyBarcodeAsync(string barcode, CancellationToken ct = default);
     Task<IReadOnlyList<LoanItem>> GetActiveLoanItemsByMemberIdAsync(Guid memberId, CancellationToken ct = default);
+    Task<IReadOnlyList<LoanItem>> GetLoanHistoryByMemberIdAsync(Guid memberId, CancellationToken ct = default);
     Task<IReadOnlyList<LoanItem>> GetOverdueLoanItemsAsync(DateTime utcNow, CancellationToken ct = default);
     Task<PagedResult<Loan>> GetPagedAsync(PagedRequest request, CancellationToken ct = default);
     Task AddAsync(Loan loan, CancellationToken ct = default);

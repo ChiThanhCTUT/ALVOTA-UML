@@ -36,6 +36,9 @@ public sealed class UpdateSettingCommandHandler : IRequestHandler<UpdateSettingC
 
     public async Task<Result> Handle(UpdateSettingCommand request, CancellationToken ct)
     {
+        if (_currentUser.Role != "Admin")
+            return Result.Failure(DomainErrors.Auth.Unauthorized);
+
         var now = _time.GetUtcNow().UtcDateTime;
         await _settings.SetValueAsync(request.Key, request.Value, request.Category, request.Description, ct);
 
@@ -83,6 +86,9 @@ public sealed class CreateBackupCommandHandler : IRequestHandler<CreateBackupCom
 
     public async Task<Result<string>> Handle(CreateBackupCommand request, CancellationToken ct)
     {
+        if (_currentUser.Role != "Admin" && _currentUser.Role != "Librarian")
+            return Result.Failure<string>(DomainErrors.Auth.Unauthorized);
+
         var now = _time.GetUtcNow().UtcDateTime;
         try
         {
@@ -136,6 +142,9 @@ public sealed class RestoreBackupCommandHandler : IRequestHandler<RestoreBackupC
 
     public async Task<Result> Handle(RestoreBackupCommand request, CancellationToken ct)
     {
+        if (_currentUser.Role != "Admin")
+            return Result.Failure(DomainErrors.Auth.Unauthorized);
+
         var now = _time.GetUtcNow().UtcDateTime;
         try
         {

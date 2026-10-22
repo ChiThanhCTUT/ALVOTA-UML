@@ -16,7 +16,9 @@ public static class CirculationPolicyService
         bool hasOverdueLoans,
         decimal unpaidFineAmount,
         DateTime utcNow,
-        decimal debtThreshold = BusinessRuleConstants.DebtThresholdToBlockBorrowing)
+        decimal debtThreshold = BusinessRuleConstants.DebtThresholdToBlockBorrowing,
+        int? customStudentLimit = null,
+        int? customTeacherLimit = null)
     {
         // 1. Thẻ bị khóa hoặc hết hạn
         if (!member.IsCardActive(utcNow))
@@ -31,7 +33,7 @@ public static class CirculationPolicyService
             return Result.Failure(DomainErrors.Circulation.CopyUnavailable);
 
         // 4. Đạt hạn mức mượn (BR-01, BR-02)
-        var limit = member.GetBorrowLimit();
+        var limit = member.GetBorrowLimit(customStudentLimit, customTeacherLimit);
         if (activeLoansCount >= limit)
             return Result.Failure(DomainErrors.Circulation.LimitReached);
 
@@ -49,12 +51,16 @@ public static class CirculationPolicyService
     /// <summary>
     /// CIR-05, BR-04: Kiểm tra điều kiện gia hạn
     /// </summary>
-    public static Result CanRenew(LoanItem item, DateTime utcNow, bool hasActiveReservation)
+    public static Result CanRenew(
+        LoanItem item,
+        DateTime utcNow,
+        bool hasActiveReservation,
+        int maxRenewalCount = BusinessRuleConstants.MaxRenewalCount)
     {
         if (item.IsReturned)
             return Result.Failure(DomainErrors.Circulation.AlreadyReturned);
 
-        if (item.RenewalCount >= BusinessRuleConstants.MaxRenewalCount)
+        if (item.RenewalCount >= maxRenewalCount)
             return Result.Failure(DomainErrors.Circulation.RenewNotAllowed);
 
         if (utcNow > item.DueDateUtc)

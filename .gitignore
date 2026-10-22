@@ -10,3 +10,5 @@ TestResults/
 *.db
 *.db-shm
 *.db-wal
+app_log.txt
+Backups/

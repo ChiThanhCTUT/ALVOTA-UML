@@ -1,8 +1,11 @@
 using FluentAssertions;
+using Library.Application.Common.Models;
 using Library.Application.Features.Catalog.Commands;
 using Library.Application.Features.Circulation.Commands.BorrowBook;
 using Library.Application.Features.Circulation.Commands.ReturnBook;
 using Library.Application.Features.Fines.Commands;
+using Library.Application.Features.Inventory.Commands;
+using Library.Application.Features.Reports.Queries;
 using Library.Domain.Entities;
 using Library.Domain.Enums;
 using Library.Infrastructure.Persistence;
@@ -120,6 +123,10 @@ public class CirculationIntegrationTests : IDisposable
         var fineInDb = await fines.GetByIdAsync(returnResult.Value.FineId.Value);
         fineInDb!.Status.Should().Be(FineStatus.Paid);
         fineInDb.RemainingAmount.Should().Be(0m);
+
+        // Assert Loan.Status updated to Returned (BUG-011)
+        var loanInDb = await loans.GetByIdAsync(borrowResult.Value.Id);
+        loanInDb!.Status.Should().Be(LoanStatus.Returned);
     }
 
     [Fact]
@@ -233,7 +240,8 @@ public class CirculationIntegrationTests : IDisposable
 
         // Assert 2
         updateResult.IsSuccess.Should().BeTrue();
-        updateResult.Value.Authors.Should().BeEquivalentTo(new[] { "Nguyễn Nhật Ánh", "Tô Hoài" });
+        updateResult.Value.Authors.Should().HaveCount(2);
+        updateResult.Value.Authors.Should().Contain("Nguyễn Nhật Ánh").And.Contain("Tô Hoài");
     }
 
     [Fact]
@@ -244,6 +252,168 @@ public class CirculationIntegrationTests : IDisposable
         currentUser.UserId.Should().BeNull();
         currentUser.Username.Should().BeNull();
         currentUser.Role.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task InventorySessionFlow_PopulatesExpectedCopiesAndComputesMissingAndDamaged() // BUG-007
+    {
+        // Arrange: 3 copies on Kệ K1 (2 Available, 1 Damaged)
+        var category = new Category { Name = "Lịch sử" };
+        var publisher = new Publisher { Name = "NXB Sự Thật" };
+        var book = new Book { Title = "Đại Việt Sử Ký", Price = 120000m, Category = category, Publisher = publisher };
+        var copy1 = new BookCopy { Book = book, Barcode = "CP-INV-01", ShelfLocation = "Kệ K1", Status = CopyStatus.Available };
+        var copy2 = new BookCopy { Book = book, Barcode = "CP-INV-02", ShelfLocation = "Kệ K1", Status = CopyStatus.Available };
+        var copy3 = new BookCopy { Book = book, Barcode = "CP-INV-03", ShelfLocation = "Kệ K1", Status = CopyStatus.Damaged };
+
+        await _context.Categories.AddAsync(category);
+        await _context.Publishers.AddAsync(publisher);
+        await _context.Books.AddAsync(book);
+        await _context.BookCopies.AddRangeAsync(copy1, copy2, copy3);
+        await _context.SaveChangesAsync();
+
+        var inventoryRepo = new InventoryRepository(_context);
+        var copyRepo = new BookCopyRepository(_context);
+
+        var createHandler = new CreateInventorySessionCommandHandler(inventoryRepo, _uow, _time, copyRepo);
+        var scanHandler = new ScanInventoryBarcodeCommandHandler(inventoryRepo, copyRepo, _uow, _time);
+        var completeHandler = new CompleteInventorySessionCommandHandler(inventoryRepo, _uow, _time);
+
+        // Act 1: Create session for "Kệ K1"
+        var createRes = await createHandler.Handle(new CreateInventorySessionCommand("Kiểm kê Kệ K1", "Kệ K1"), CancellationToken.None);
+        createRes.IsSuccess.Should().BeTrue();
+        createRes.Value.TotalExpected.Should().Be(3);
+
+        // Act 2: Scan only copy1 and copy3 (leave copy2 unscanned -> Missing)
+        var scan1 = await scanHandler.Handle(new ScanInventoryBarcodeCommand(createRes.Value.Id, "CP-INV-01"), CancellationToken.None);
+        var scan3 = await scanHandler.Handle(new ScanInventoryBarcodeCommand(createRes.Value.Id, "CP-INV-03"), CancellationToken.None);
+        scan1.IsSuccess.Should().BeTrue();
+        scan3.IsSuccess.Should().BeTrue();
+
+        // Act 3: Complete session
+        var completeRes = await completeHandler.Handle(new CompleteInventorySessionCommand(createRes.Value.Id), CancellationToken.None);
+
+        // Assert
+        completeRes.IsSuccess.Should().BeTrue();
+        completeRes.Value.Status.Should().Be(InventorySessionStatus.Completed);
+        completeRes.Value.TotalExpected.Should().Be(3);
+        completeRes.Value.TotalScanned.Should().Be(2);
+        completeRes.Value.TotalMissing.Should().Be(1);
+        completeRes.Value.TotalDamaged.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SoftDeletedBook_AllowsRecreatingWithSameIsbn_AndVietnameseSearchMatches() // BUG-012, BUG-013, BUG-014
+    {
+        var category = new Category { Name = "Kỹ năng sống" };
+        var publisher = new Publisher { Name = "NXB Tổng Hợp" };
+        await _context.Categories.AddAsync(category);
+        await _context.Publishers.AddAsync(publisher);
+        await _context.SaveChangesAsync();
+
+        var books = new BookRepository(_context);
+        var copies = new BookCopyRepository(_context);
+        var createHandler = new CreateBookCommandHandler(books, copies, _uow, _time);
+        var deleteHandler = new DeleteBookCommandHandler(books, _uow, _time);
+
+        var firstCreate = await createHandler.Handle(new CreateBookCommand(
+            Title: "Đắc Nhân Tâm",
+            Subtitle: null,
+            Isbn: "978-604-58-1234-5",
+            PublicationYear: 2023,
+            CategoryId: category.Id,
+            PublisherId: publisher.Id,
+            Language: "Tiếng Việt",
+            PageCount: 320,
+            Price: 88000m,
+            CoverImagePath: null,
+            Summary: null,
+            IsReferenceOnly: false,
+            AuthorIds: Array.Empty<Guid>(),
+            InitialCopiesCount: 2,
+            InitialShelfLocation: "Kệ A2"), CancellationToken.None);
+
+        firstCreate.IsSuccess.Should().BeTrue();
+
+        // Soft-delete first book
+        var delRes = await deleteHandler.Handle(new DeleteBookCommand(firstCreate.Value.Id), CancellationToken.None);
+        delRes.IsSuccess.Should().BeTrue();
+
+        // Re-create book with the exact same ISBN (BUG-013 filtered unique index)
+        var secondCreate = await createHandler.Handle(new CreateBookCommand(
+            Title: "Đắc Nhân Tâm (Bản mới)",
+            Subtitle: null,
+            Isbn: "978-604-58-1234-5",
+            PublicationYear: 2024,
+            CategoryId: category.Id,
+            PublisherId: publisher.Id,
+            Language: "Tiếng Việt",
+            PageCount: 320,
+            Price: 95000m,
+            CoverImagePath: null,
+            Summary: null,
+            IsReferenceOnly: false,
+            AuthorIds: Array.Empty<Guid>(),
+            InitialCopiesCount: 2,
+            InitialShelfLocation: "Kệ A2"), CancellationToken.None);
+
+        secondCreate.IsSuccess.Should().BeTrue();
+
+        // Search lowercase Vietnamese "đắc nhân tâm" (BUG-014)
+        var searchResult = await books.GetPagedAsync(new PagedRequest(1, 10, "đắc nhân tâm"));
+        searchResult.TotalCount.Should().Be(1);
+        searchResult.Items[0].Title.Should().Contain("Đắc Nhân Tâm");
+    }
+
+    [Fact]
+    public async Task PartialFinePayment_IsIncludedInMonthlyDashboardRevenue() // BUG-006, BUG-014
+    {
+        var category = new Category { Name = "Toán học" };
+        var publisher = new Publisher { Name = "NXB Giáo Dục" };
+        var book = new Book { Title = "Giải Tích 12", Price = 50000m, Category = category, Publisher = publisher };
+        var member = new Member
+        {
+            CardNumber = "HS-8888",
+            FullName = "Đặng Thị Hoa",
+            ClassOrDepartment = "12A1",
+            CardStatus = CardStatus.Active,
+            CardIssuedAtUtc = _baseTime,
+            CardExpiresAtUtc = _baseTime.AddYears(1)
+        };
+        var fine = new Fine
+        {
+            Member = member,
+            Reason = FineReason.Overdue,
+            Amount = 20000m,
+            Status = FineStatus.Pending,
+            CreatedAtUtc = _baseTime
+        };
+
+        await _context.Categories.AddAsync(category);
+        await _context.Publishers.AddAsync(publisher);
+        await _context.Books.AddAsync(book);
+        await _context.Members.AddAsync(member);
+        await _context.Fines.AddAsync(fine);
+        await _context.SaveChangesAsync();
+
+        var books = new BookRepository(_context);
+        var loans = new LoanRepository(_context);
+        var fines = new FineRepository(_context);
+        var members = new MemberRepository(_context);
+        var currentUser = new CurrentUserService();
+        currentUser.SetUser(Guid.NewGuid().ToString(), "librarian", "Librarian");
+
+        // Pay partial fine (10,000 / 20,000) -> Status remains Pending
+        var payHandler = new PayFineCommandHandler(fines, currentUser, _uow, _time);
+        var payRes = await payHandler.Handle(new PayFineCommand(fine.Id, 10000m), CancellationToken.None);
+        payRes.IsSuccess.Should().BeTrue();
+        payRes.Value.Amount.Should().Be(10000m);
+        fine.Status.Should().Be(FineStatus.Pending);
+
+        // Dashboard statistics must still include the 10,000đ partial payment in MonthlyFineRevenue
+        var dashboardHandler = new GetDashboardStatisticsQueryHandler(books, loans, fines, members, _time);
+        var statsRes = await dashboardHandler.Handle(new GetDashboardStatisticsQuery(), CancellationToken.None);
+        statsRes.IsSuccess.Should().BeTrue();
+        statsRes.Value.MonthlyFineRevenue.Should().Be(10000m);
     }
 
     public void Dispose()

@@ -105,7 +105,7 @@ public partial class App : System.Windows.Application
         }
     }
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         try
         {
@@ -115,13 +115,13 @@ public partial class App : System.Windows.Application
             ShutdownMode = ShutdownMode.OnMainWindowClose;
 
             System.IO.File.AppendAllText(LogPath, "2. Starting host\n");
-            _host.Start();
+            await _host.StartAsync();
 
             System.IO.File.AppendAllText(LogPath, "3. Initializing DB\n");
-            using (var scope = _host.Services.CreateScope())
+            await using (var scope = _host.Services.CreateAsyncScope())
             {
                 var dbInitializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
-                dbInitializer.InitializeAsync().GetAwaiter().GetResult();
+                await dbInitializer.InitializeAsync();
             }
 
             System.IO.File.AppendAllText(LogPath, "4. Resolving MainWindow\n");
@@ -151,10 +151,10 @@ public partial class App : System.Windows.Application
         }
     }
 
-    protected override void OnExit(ExitEventArgs e)
+    protected override async void OnExit(ExitEventArgs e)
     {
         System.IO.File.AppendAllText(LogPath, $"OnExit called. ExitCode={e.ApplicationExitCode}\n");
-        _host.StopAsync().GetAwaiter().GetResult();
+        await _host.StopAsync();
         _host.Dispose();
         base.OnExit(e);
     }

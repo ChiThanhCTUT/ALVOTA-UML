@@ -47,11 +47,11 @@ public sealed class GetDashboardStatisticsQueryHandler : IRequestHandler<GetDash
         var allLoans = await _loans.GetPagedAsync(new PagedRequest(1, 10000), ct: ct);
         var activeLoansCount = allLoans.Items.Sum(l => l.Items.Count(i => !i.IsReturned));
 
-        var finesPaged = await _fines.GetPagedAsync(new PagedRequest(1, 10000), FineStatus.Paid, ct);
+        var finesPaged = await _fines.GetPagedAsync(new PagedRequest(1, 10000), null, ct);
         var startOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var monthlyRevenue = finesPaged.Items
             .SelectMany(f => f.Payments)
-            .Where(p => p.PaidAtUtc >= startOfMonth)
+            .Where(p => !p.IsDeleted && p.PaidAtUtc >= startOfMonth)
             .Sum(p => p.Amount);
 
         var membersPaged = await _members.GetPagedAsync(new PagedRequest(1, 10000), status: CardStatus.Active, ct: ct);

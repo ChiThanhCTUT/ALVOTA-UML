@@ -11,7 +11,7 @@ public sealed class MemberConfiguration : IEntityTypeConfiguration<Member>
         builder.ToTable("Members");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.CardNumber).IsRequired().HasMaxLength(50);
-        builder.HasIndex(x => x.CardNumber).IsUnique(); // MEM: Mã thẻ duy nhất
+        builder.HasIndex(x => x.CardNumber).IsUnique().HasFilter("[IsDeleted] = 0"); // MEM: Mã thẻ duy nhất (loại trừ đã xóa mềm)
         builder.Property(x => x.FullName).IsRequired().HasMaxLength(200);
         builder.Property(x => x.ClassOrDepartment).IsRequired().HasMaxLength(100);
         builder.Property(x => x.PhoneNumber).HasMaxLength(30);
@@ -43,6 +43,7 @@ public sealed class LoanItemConfiguration : IEntityTypeConfiguration<LoanItem>
     {
         builder.ToTable("LoanItems");
         builder.HasKey(x => x.Id);
+        builder.HasIndex(x => x.BookCopyId).IsUnique().HasFilter("[ReturnedAtUtc] IS NULL AND [IsDeleted] = 0");
         builder.Property(x => x.RowVersion).IsConcurrencyToken();
         builder.HasQueryFilter(x => !x.IsDeleted);
 

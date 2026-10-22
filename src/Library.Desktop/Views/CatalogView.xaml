@@ -55,6 +55,11 @@
 
                         <TextBlock Text="Mã chuẩn ISBN" FontSize="12" FontWeight="SemiBold" Margin="0,8,0,4"/>
                         <TextBox Text="{Binding NewIsbn, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Height="36"/>
+
+                        <TextBlock Text="Tác giả (*)" FontSize="12" FontWeight="SemiBold" Margin="0,8,0,4"/>
+                        <ComboBox ItemsSource="{Binding Authors}"
+                                  SelectedItem="{Binding NewSelectedAuthor}"
+                                  DisplayMemberPath="Name" Height="36" Padding="8,4"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Margin="10,0,10,0">
@@ -67,6 +72,9 @@
                         <ComboBox ItemsSource="{Binding Publishers}"
                                   SelectedItem="{Binding NewSelectedPublisher}"
                                   DisplayMemberPath="Name" Height="36" Padding="8,4"/>
+
+                        <TextBlock Text="Giá bìa (VNĐ)" FontSize="12" FontWeight="SemiBold" Margin="0,8,0,4"/>
+                        <TextBox Text="{Binding NewPrice, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Height="36"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Margin="10,0,0,0">
@@ -96,14 +104,21 @@
                     <DataGridTextColumn Header="Giá bìa" Binding="{Binding Price, StringFormat='{}{0:N0} đ'}" Width="100"/>
                     <DataGridTextColumn Header="Sẵn sàng" Binding="{Binding AvailableCopies}" Width="80"/>
                     <DataGridTextColumn Header="Tổng bản" Binding="{Binding TotalCopies}" Width="80"/>
-                    <DataGridTemplateColumn Header="Thao tác" Width="130">
+                    <DataGridTemplateColumn Header="Thao tác" Width="190">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <Button Content="+ Thêm bản"
-                                        Command="{Binding DataContext.AddCopiesCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                        CommandParameter="{Binding}"
-                                        Style="{StaticResource OutlinedButton}"
-                                        Padding="8,2" FontSize="12"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="+ Thêm bản"
+                                            Command="{Binding DataContext.AddCopiesCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource OutlinedButton}"
+                                            Padding="8,2" FontSize="12" Margin="0,0,6,0"/>
+                                    <Button Content="🗑 Xóa"
+                                            Command="{Binding DataContext.DeleteBookCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource DangerButton}"
+                                            Padding="8,2" FontSize="12"/>
+                                </StackPanel>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

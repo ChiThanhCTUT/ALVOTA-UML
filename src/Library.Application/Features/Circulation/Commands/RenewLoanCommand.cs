@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentValidation;
 using Library.Application.Common.Interfaces;
 using Library.Application.Features.Circulation.DTOs;
@@ -25,17 +26,20 @@ public sealed class RenewLoanCommandHandler : IRequestHandler<RenewLoanCommand, 
     private readonly IReservationRepository _reservations;
     private readonly IUnitOfWork _uow;
     private readonly TimeProvider _time;
+    private readonly ISettingRepository? _settings;
 
     public RenewLoanCommandHandler(
         ILoanRepository loans,
         IReservationRepository reservations,
         IUnitOfWork uow,
-        TimeProvider time)
+        TimeProvider time,
+        ISettingRepository? settings = null)
     {
         _loans = loans;
         _reservations = reservations;
         _uow = uow;
         _time = time;
+        _settings = settings;
     }
 
     public async Task<Result<LoanItemDto>> Handle(RenewLoanCommand request, CancellationToken ct)
@@ -50,14 +54,26 @@ public sealed class RenewLoanCommandHandler : IRequestHandler<RenewLoanCommand, 
 
         var hasReservation = (await _reservations.GetOldestPendingReservationForBookAsync(loanItem.BookCopy!.BookId, ct)) != null;
 
-        var canRenew = CirculationPolicyService.CanRenew(loanItem, now, hasReservation);
+        var maxRenewalCount = await GetIntSettingAsync("MaxRenewalCount", BusinessRuleConstants.MaxRenewalCount, ct);
+        var renewalDays = await GetIntSettingAsync("RenewalDays", BusinessRuleConstants.RenewalDays, ct);
+
+        var canRenew = CirculationPolicyService.CanRenew(loanItem, now, hasReservation, maxRenewalCount);
         if (canRenew.IsFailure)
             return Result.Failure<LoanItemDto>(canRenew.Error);
 
-        loanItem.Renew(now);
+        loanItem.Renew(now, renewalDays);
         _loans.UpdateItem(loanItem);
         await _uow.SaveChangesAsync(ct);
 
         return Result.Success(LoanItemDto.From(loanItem, now));
+    }
+
+    private async Task<int> GetIntSettingAsync(string key, int defaultValue, CancellationToken ct)
+    {
+        if (_settings is null) return defaultValue;
+        var raw = await _settings.GetValueOrDefaultAsync(key, defaultValue.ToString(CultureInfo.InvariantCulture), ct);
+        return int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed > 0
+            ? parsed
+            : defaultValue;
     }
 }

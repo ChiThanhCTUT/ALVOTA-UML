@@ -21,6 +21,18 @@ public sealed class DatabaseInitializer
     {
         await _context.Database.EnsureCreatedAsync(ct);
 
+        if (_context.Database.IsSqlite())
+        {
+            try
+            {
+                await _context.Database.ExecuteSqlRawAsync("ALTER TABLE Users ADD COLUMN LastLoginAtUtc TEXT NULL;", ct);
+            }
+            catch
+            {
+                // Column already exists
+            }
+        }
+
         // 1. Seed Roles (AUTH-04)
         var adminRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Admin", ct);
         if (adminRole == null)

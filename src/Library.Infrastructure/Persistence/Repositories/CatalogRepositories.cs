@@ -48,12 +48,24 @@ public sealed class BookRepository : IBookRepository
 
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
-            var term = request.SearchTerm.Trim().ToLower();
-            query = query.Where(b =>
-                b.Title.ToLower().Contains(term) ||
-                (b.Isbn != null && b.Isbn.ToLower().Contains(term)) ||
-                b.BookAuthors.Any(ba => ba.Author.FullName.ToLower().Contains(term)) ||
-                b.Copies.Any(c => c.Barcode.ToLower().Contains(term)));
+            var term = request.SearchTerm.Trim();
+            var allCandidates = await query
+                .OrderByDescending(b => b.CreatedAtUtc)
+                .ToListAsync(ct);
+
+            var filtered = allCandidates.Where(b =>
+                b.Title.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
+                (b.Isbn != null && b.Isbn.Contains(term, StringComparison.CurrentCultureIgnoreCase)) ||
+                b.BookAuthors.Any(ba => ba.Author != null && ba.Author.FullName.Contains(term, StringComparison.CurrentCultureIgnoreCase)) ||
+                b.Copies.Any(c => c.Barcode.Contains(term, StringComparison.CurrentCultureIgnoreCase)))
+                .ToList();
+
+            var pagedItems = filtered
+                .Skip((request.PageIndex - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToList();
+
+            return new PagedResult<Book>(pagedItems, filtered.Count, request.PageIndex, request.PageSize);
         }
 
         var total = await query.CountAsync(ct);
@@ -115,6 +127,22 @@ public sealed class BookCopyRepository : IBookCopyRepository
             .AsNoTracking()
             .Where(c => c.BookId == bookId)
             .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<BookCopy>> GetForInventoryAsync(string? shelfLocation = null, CancellationToken ct = default)
+    {
+        var query = _context.BookCopies
+            .AsNoTracking()
+            .Include(c => c.Book)
+            .Where(c => c.Status != Domain.Enums.CopyStatus.Disposed);
+
+        if (!string.IsNullOrWhiteSpace(shelfLocation))
+        {
+            var shelf = shelfLocation.Trim().ToLower();
+            query = query.Where(c => c.ShelfLocation.ToLower() == shelf);
+        }
+
+        return await query.ToListAsync(ct);
     }
 
     public async Task AddAsync(BookCopy copy, CancellationToken ct = default)

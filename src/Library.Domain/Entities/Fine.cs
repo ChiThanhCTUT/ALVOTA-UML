@@ -47,7 +47,7 @@ public sealed class Fine : AuditableEntity
 
         Payments.Add(payment);
 
-        if (PaidAmount + amount >= Amount)
+        if (PaidAmount >= Amount)
         {
             Status = FineStatus.Paid;
         }

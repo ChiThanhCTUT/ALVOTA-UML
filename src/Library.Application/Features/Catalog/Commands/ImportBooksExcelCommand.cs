@@ -118,9 +118,10 @@ public sealed class ImportBooksExcelCommandHandler : IRequestHandler<ImportBooks
 
                 book.BookAuthors.Add(new BookAuthor { BookId = book.Id, AuthorId = author.Id });
 
+                var batchCode = Guid.NewGuid().ToString("N")[..7].ToUpperInvariant();
                 for (int c = 1; c <= row.Quantity; c++)
                 {
-                    var barcode = $"CP-{DateTime.UtcNow.Ticks % 10000000:D7}-{c:D2}";
+                    var barcode = $"CP-{batchCode}-{c:D2}";
                     book.Copies.Add(new BookCopy
                     {
                         BookId = book.Id,

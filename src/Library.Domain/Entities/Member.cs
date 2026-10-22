@@ -47,11 +47,19 @@ public sealed class Member : AuditableEntity
         };
     }
 
+    public int GetActiveLoanCount()
+    {
+        return Loans
+            .Where(l => !l.IsDeleted)
+            .SelectMany(l => l.Items)
+            .Count(i => !i.IsDeleted && i.ReturnedAtUtc == null);
+    }
+
     public decimal GetUnpaidFineTotal()
     {
         return Fines
             .Where(f => !f.IsDeleted && f.Status == FineStatus.Pending)
-            .Sum(f => f.Amount);
+            .Sum(f => f.RemainingAmount);
     }
 
     public void ReissueCard(string newCardNumber, DateTime utcNow, DateTime newExpiryUtc)

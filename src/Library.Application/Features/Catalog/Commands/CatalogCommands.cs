@@ -43,21 +43,27 @@ public sealed class CreateBookCommandHandler : IRequestHandler<CreateBookCommand
     private readonly IBookCopyRepository _copies;
     private readonly IUnitOfWork _uow;
     private readonly TimeProvider _time;
+    private readonly ICurrentUserService? _currentUser;
 
     public CreateBookCommandHandler(
         IBookRepository books,
         IBookCopyRepository copies,
         IUnitOfWork uow,
-        TimeProvider time)
+        TimeProvider time,
+        ICurrentUserService? currentUser = null)
     {
         _books = books;
         _copies = copies;
         _uow = uow;
         _time = time;
+        _currentUser = currentUser;
     }
 
     public async Task<Result<BookDto>> Handle(CreateBookCommand request, CancellationToken ct)
     {
+        if (_currentUser is not null && _currentUser.Role != "Admin" && _currentUser.Role != "Librarian")
+            return Result.Failure<BookDto>(DomainErrors.Auth.Unauthorized);
+
         var now = _time.GetUtcNow().UtcDateTime;
 
         if (!string.IsNullOrWhiteSpace(request.Isbn))
@@ -90,9 +96,10 @@ public sealed class CreateBookCommandHandler : IRequestHandler<CreateBookCommand
         }
 
         // Tạo sẵn các bản sao ban đầu nếu có yêu cầu (CAT-03)
+        var batchCode = Guid.NewGuid().ToString("N")[..7].ToUpperInvariant();
         for (int i = 1; i <= request.InitialCopiesCount; i++)
         {
-            var barcode = $"CP-{DateTime.UtcNow.Ticks % 10000000:D7}-{i:D2}";
+            var barcode = $"CP-{batchCode}-{i:D2}";
             var copy = new BookCopy
             {
                 BookId = book.Id,
@@ -101,7 +108,7 @@ public sealed class CreateBookCommandHandler : IRequestHandler<CreateBookCommand
                 ShelfLocation = request.InitialShelfLocation ?? "Kệ chung",
                 Status = CopyStatus.Available,
                 CreatedAtUtc = now,
-                CreatedBy = "System"
+                CreatedBy = _currentUser?.Username ?? "System"
             };
             book.Copies.Add(copy);
         }
@@ -136,16 +143,25 @@ public sealed class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand
     private readonly IBookRepository _books;
     private readonly IUnitOfWork _uow;
     private readonly TimeProvider _time;
+    private readonly ICurrentUserService? _currentUser;
 
-    public UpdateBookCommandHandler(IBookRepository books, IUnitOfWork uow, TimeProvider time)
+    public UpdateBookCommandHandler(
+        IBookRepository books,
+        IUnitOfWork uow,
+        TimeProvider time,
+        ICurrentUserService? currentUser = null)
     {
         _books = books;
         _uow = uow;
         _time = time;
+        _currentUser = currentUser;
     }
 
     public async Task<Result<BookDto>> Handle(UpdateBookCommand request, CancellationToken ct)
     {
+        if (_currentUser is not null && _currentUser.Role != "Admin" && _currentUser.Role != "Librarian")
+            return Result.Failure<BookDto>(DomainErrors.Auth.Unauthorized);
+
         var now = _time.GetUtcNow().UtcDateTime;
         var book = await _books.GetByIdAsync(request.Id, ct);
         if (book is null) return Result.Failure<BookDto>(DomainErrors.Catalog.BookNotFound);
@@ -192,16 +208,28 @@ public sealed class DeleteBookCommandHandler : IRequestHandler<DeleteBookCommand
     private readonly IBookRepository _books;
     private readonly IUnitOfWork _uow;
     private readonly TimeProvider _time;
+    private readonly ICurrentUserService? _currentUser;
+    private readonly IAuditLogRepository? _auditLogs;
 
-    public DeleteBookCommandHandler(IBookRepository books, IUnitOfWork uow, TimeProvider time)
+    public DeleteBookCommandHandler(
+        IBookRepository books,
+        IUnitOfWork uow,
+        TimeProvider time,
+        ICurrentUserService? currentUser = null,
+        IAuditLogRepository? auditLogs = null)
     {
         _books = books;
         _uow = uow;
         _time = time;
+        _currentUser = currentUser;
+        _auditLogs = auditLogs;
     }
 
     public async Task<Result> Handle(DeleteBookCommand request, CancellationToken ct)
     {
+        if (_currentUser is not null && _currentUser.Role != "Admin" && _currentUser.Role != "Librarian")
+            return Result.Failure(DomainErrors.Auth.Unauthorized);
+
         var now = _time.GetUtcNow().UtcDateTime;
         var book = await _books.GetByIdAsync(request.Id, ct);
         if (book is null) return Result.Failure(DomainErrors.Catalog.BookNotFound);
@@ -209,13 +237,29 @@ public sealed class DeleteBookCommandHandler : IRequestHandler<DeleteBookCommand
         if (!book.CanBeDeleted)
             return Result.Failure(DomainErrors.Catalog.HasActiveLoans);
 
-        book.MarkDeleted("System", now);
+        var actor = _currentUser?.Username ?? "System";
+        book.MarkDeleted(actor, now);
         foreach (var copy in book.Copies)
         {
-            copy.MarkDeleted("System", now);
+            copy.MarkDeleted(actor, now);
         }
 
         _books.Update(book);
+
+        if (_auditLogs is not null)
+        {
+            await _auditLogs.AddAsync(new AuditLog
+            {
+                UserId = Guid.TryParse(_currentUser?.UserId, out var uid) ? uid : null,
+                Username = actor,
+                Action = "DeleteBook",
+                EntityName = nameof(Book),
+                EntityId = book.Id.ToString(),
+                Details = $"Xóa mềm đầu sách '{book.Title}' và {book.Copies.Count} bản sao",
+                TimestampUtc = now
+            }, ct);
+        }
+
         await _uow.SaveChangesAsync(ct);
 
         return Result.Success();
@@ -235,31 +279,38 @@ public sealed class AddBookCopiesCommandHandler : IRequestHandler<AddBookCopiesC
     private readonly IBookCopyRepository _copies;
     private readonly IUnitOfWork _uow;
     private readonly TimeProvider _time;
+    private readonly ICurrentUserService? _currentUser;
 
     public AddBookCopiesCommandHandler(
         IBookRepository books,
         IBookCopyRepository copies,
         IUnitOfWork uow,
-        TimeProvider time)
+        TimeProvider time,
+        ICurrentUserService? currentUser = null)
     {
         _books = books;
         _copies = copies;
         _uow = uow;
         _time = time;
+        _currentUser = currentUser;
     }
 
     public async Task<Result<IReadOnlyList<BookCopyDto>>> Handle(AddBookCopiesCommand request, CancellationToken ct)
     {
+        if (_currentUser is not null && _currentUser.Role != "Admin" && _currentUser.Role != "Librarian")
+            return Result.Failure<IReadOnlyList<BookCopyDto>>(DomainErrors.Auth.Unauthorized);
+
         var now = _time.GetUtcNow().UtcDateTime;
         var book = await _books.GetByIdAsync(request.BookId, ct);
         if (book is null) return Result.Failure<IReadOnlyList<BookCopyDto>>(DomainErrors.Catalog.BookNotFound);
 
         var newCopies = new List<BookCopy>();
         var prefix = string.IsNullOrWhiteSpace(request.BarcodePrefix) ? "CP" : request.BarcodePrefix.Trim();
+        var batchCode = Guid.NewGuid().ToString("N")[..7].ToUpperInvariant();
 
         for (int i = 1; i <= request.Quantity; i++)
         {
-            var uniqueBarcode = $"{prefix}-{DateTime.UtcNow.Ticks % 10000000:D7}-{i:D2}";
+            var uniqueBarcode = $"{prefix}-{batchCode}-{i:D2}";
             var copy = new BookCopy
             {
                 BookId = book.Id,
@@ -268,7 +319,7 @@ public sealed class AddBookCopiesCommandHandler : IRequestHandler<AddBookCopiesC
                 ShelfLocation = request.ShelfLocation.Trim(),
                 Status = CopyStatus.Available,
                 CreatedAtUtc = now,
-                CreatedBy = "System"
+                CreatedBy = _currentUser?.Username ?? "System"
             };
             newCopies.Add(copy);
         }

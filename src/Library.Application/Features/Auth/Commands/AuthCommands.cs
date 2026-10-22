@@ -82,27 +82,47 @@ public sealed record CreateUserCommand(
     string? Email,
     string RoleName) : IRequest<Result<UserDto>>;
 
+public sealed class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
+{
+    public CreateUserCommandValidator()
+    {
+        RuleFor(x => x.Username).NotEmpty().WithMessage("Tên đăng nhập không được để trống.");
+        RuleFor(x => x.Password).NotEmpty().MinimumLength(6).WithMessage("Mật khẩu phải có ít nhất 6 ký tự.");
+        RuleFor(x => x.FullName).NotEmpty().WithMessage("Họ và tên không được để trống.");
+        RuleFor(x => x.RoleName).NotEmpty().WithMessage("Vai trò không được để trống.");
+    }
+}
+
 public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, Result<UserDto>>
 {
     private readonly IUserRepository _users;
     private readonly IPasswordHasher _hasher;
     private readonly IUnitOfWork _uow;
     private readonly TimeProvider _time;
+    private readonly ICurrentUserService? _currentUser;
+    private readonly IAuditLogRepository? _auditLogs;
 
     public CreateUserCommandHandler(
         IUserRepository users,
         IPasswordHasher hasher,
         IUnitOfWork uow,
-        TimeProvider time)
+        TimeProvider time,
+        ICurrentUserService? currentUser = null,
+        IAuditLogRepository? auditLogs = null)
     {
         _users = users;
         _hasher = hasher;
         _uow = uow;
         _time = time;
+        _currentUser = currentUser;
+        _auditLogs = auditLogs;
     }
 
     public async Task<Result<UserDto>> Handle(CreateUserCommand request, CancellationToken ct)
     {
+        if (_currentUser is not null && _currentUser.Role != "Admin")
+            return Result.Failure<UserDto>(DomainErrors.Auth.Unauthorized);
+
         var now = _time.GetUtcNow().UtcDateTime;
         var existing = await _users.GetByUsernameAsync(request.Username.Trim(), ct);
         if (existing != null)
@@ -112,6 +132,7 @@ public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand
         if (role == null)
             return Result.Failure<UserDto>(new Error("AUTH.ROLE_NOT_FOUND", "Không tìm thấy vai trò chỉ định."));
 
+        var actor = _currentUser?.Username ?? "Admin";
         var (hash, salt) = _hasher.HashPassword(request.Password);
         var user = new User
         {
@@ -124,10 +145,25 @@ public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand
             Role = role,
             IsActive = true,
             CreatedAtUtc = now,
-            CreatedBy = "Admin"
+            CreatedBy = actor
         };
 
         await _users.AddAsync(user, ct);
+
+        if (_auditLogs is not null)
+        {
+            await _auditLogs.AddAsync(new AuditLog
+            {
+                UserId = Guid.TryParse(_currentUser?.UserId, out var uid) ? uid : null,
+                Username = actor,
+                Action = "CreateUser",
+                EntityName = nameof(User),
+                EntityId = user.Id.ToString(),
+                Details = $"Tạo tài khoản '{user.Username}' với vai trò '{role.Name}'",
+                TimestampUtc = now
+            }, ct);
+        }
+
         await _uow.SaveChangesAsync(ct);
 
         return Result.Success(UserDto.From(user));
@@ -137,36 +173,70 @@ public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand
 // AUTH-05: Admin đặt lại mật khẩu
 public sealed record ResetPasswordCommand(Guid UserId, string NewPassword) : IRequest<Result>;
 
+public sealed class ResetPasswordCommandValidator : AbstractValidator<ResetPasswordCommand>
+{
+    public ResetPasswordCommandValidator()
+    {
+        RuleFor(x => x.UserId).NotEmpty();
+        RuleFor(x => x.NewPassword).NotEmpty().MinimumLength(6).WithMessage("Mật khẩu mới phải có ít nhất 6 ký tự.");
+    }
+}
+
 public sealed class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand, Result>
 {
     private readonly IUserRepository _users;
     private readonly IPasswordHasher _hasher;
     private readonly IUnitOfWork _uow;
     private readonly TimeProvider _time;
+    private readonly ICurrentUserService? _currentUser;
+    private readonly IAuditLogRepository? _auditLogs;
 
     public ResetPasswordCommandHandler(
         IUserRepository users,
         IPasswordHasher hasher,
         IUnitOfWork uow,
-        TimeProvider time)
+        TimeProvider time,
+        ICurrentUserService? currentUser = null,
+        IAuditLogRepository? auditLogs = null)
     {
         _users = users;
         _hasher = hasher;
         _uow = uow;
         _time = time;
+        _currentUser = currentUser;
+        _auditLogs = auditLogs;
     }
 
     public async Task<Result> Handle(ResetPasswordCommand request, CancellationToken ct)
     {
+        if (_currentUser is not null && _currentUser.Role != "Admin")
+            return Result.Failure(DomainErrors.Auth.Unauthorized);
+
         var now = _time.GetUtcNow().UtcDateTime;
         var user = await _users.GetByIdAsync(request.UserId, ct);
         if (user is null) return Result.Failure(DomainErrors.Auth.UserNotFound);
 
+        var actor = _currentUser?.Username ?? "Admin";
         var (hash, salt) = _hasher.HashPassword(request.NewPassword);
         user.PasswordHash = hash;
         user.Salt = salt;
         user.Unlock(now);
         _users.Update(user);
+
+        if (_auditLogs is not null)
+        {
+            await _auditLogs.AddAsync(new AuditLog
+            {
+                UserId = Guid.TryParse(_currentUser?.UserId, out var uid) ? uid : null,
+                Username = actor,
+                Action = "ResetPassword",
+                EntityName = nameof(User),
+                EntityId = user.Id.ToString(),
+                Details = $"Đặt lại mật khẩu và mở khóa cho tài khoản '{user.Username}'",
+                TimestampUtc = now
+            }, ct);
+        }
+
         await _uow.SaveChangesAsync(ct);
 
         return Result.Success();

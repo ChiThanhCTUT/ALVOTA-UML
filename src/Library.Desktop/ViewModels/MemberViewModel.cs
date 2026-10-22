@@ -107,7 +107,7 @@ public partial class MemberViewModel : ObservableObject
         IsAddingMember = !IsAddingMember;
         if (IsAddingMember)
         {
-            NewCardNumber = $"HS-{DateTime.UtcNow.Ticks % 1000000:D6}";
+            NewCardNumber = $"HS-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
         }
     }
 
